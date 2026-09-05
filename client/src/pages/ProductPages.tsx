@@ -64,7 +64,16 @@ function StatusChip({ children, tone = "neutral" }: { children: ReactNode; tone?
 }
 
 function Brand({ onNavigate, inverse = false }: { onNavigate: (path: string) => void; inverse?: boolean }) {
-  return <button type="button" onClick={() => onNavigate("/")} className="flex items-center gap-3 text-left" aria-label="Open Orbit home"><span className="brand-mark"><span className="brand-glyph">O</span></span><span className={cn("font-display text-[22px] font-semibold tracking-tighter", inverse ? "text-paper" : "text-ink")}>Orbit<span className={inverse ? "font-sans text-teal-light" : "font-sans text-teal"}>Sync</span><small className={cn("ml-2 align-middle font-sans text-[9px] font-bold uppercase tracking-[0.18em]", inverse ? "text-paper/40" : "text-ink-muted")}>Travel OS</small></span></button>;
+  return <button type="button" onClick={() => onNavigate("/")} className="flex items-center gap-3 text-left" aria-label="Open Orbit home">
+    <span className="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5">
+        <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="2"/>
+        <path d="M12 2C12 2 8 8 8 12C8 16 12 22 12 22C12 22 16 16 16 12C16 8 12 2 12 2Z" fill="white" opacity="0.3"/>
+        <circle cx="12" cy="12" r="3" fill="white"/>
+      </svg>
+    </span>
+    <span className={cn("font-display text-[22px] font-semibold tracking-tighter", inverse ? "text-paper" : "text-ink")}>Orbit</span>
+  </button>;
 }
 
 function MobileDock({ active, onNavigate }: { active: UtilityRoute; onNavigate: (path: string) => void }) {
