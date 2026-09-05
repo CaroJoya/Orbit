@@ -6,7 +6,7 @@
  * No backend calls, real payments, live maps, authentication, or WhatsApp APIs.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import {
@@ -61,14 +61,24 @@ import {
   WandSparkles,
   X,
   Zap,
+  User,
+  UserPlus,
+  Baby,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { RouteRadarMap } from "@/components/RouteRadarMap";
+import { format } from "date-fns";
 
 type Mode = "traveler" | "operator" | "vendor";
 type TravelerStep = 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -114,10 +124,28 @@ const journey = [
 const styleCards = [
   { label: "Local Street Food", icon: Store, color: "bg-saffron/12 text-saffron" },
   { label: "Scenic Drives", icon: Route, color: "bg-teal/12 text-teal" },
-  { label: "Culture & History", icon: LandmarkIcon, color: "bg-ink/8 text-ink" },
+  { label: "Culture & History", icon: MapPin, color: "bg-ink/8 text-ink" },
   { label: "Thrill", icon: Bike, color: "bg-coral/12 text-coral" },
   { label: "Relaxed", icon: CoffeeIcon, color: "bg-moss/12 text-moss" },
+  { label: "Adventure", icon: MountainIcon, color: "bg-amber/20 text-amber-dark" },
+  { label: "Family Friendly", icon: UsersRound, color: "bg-teal/8 text-teal" },
+  { label: "Romantic Getaway", icon: HeartIcon, color: "bg-coral/8 text-coral" },
+  { label: "Budget Travel", icon: WalletCards, color: "bg-moss/8 text-moss" },
+  { label: "Luxury", icon: Sparkles, color: "bg-saffron/8 text-saffron" },
+  { label: "Spiritual", icon: Compass, color: "bg-ink/6 text-ink" },
 ];
+
+function CoffeeIcon(props: React.ComponentProps<typeof Store>) {
+  return <Store {...props} />;
+}
+
+function MountainIcon(props: React.ComponentProps<typeof Compass>) {
+  return <Compass {...props} />;
+}
+
+function HeartIcon(props: React.ComponentProps<typeof Star>) {
+  return <Star {...props} />;
+}
 
 const navItems = [
   { label: "Intake Canvas", icon: WandSparkles, step: 0 },
@@ -127,14 +155,6 @@ const navItems = [
   { label: "Digital Pass", icon: TicketCheck, step: 4 },
   { label: "Ripple Engine", icon: Zap, step: 5 },
 ];
-
-function LandmarkIcon(props: React.ComponentProps<typeof MapPin>) {
-  return <MapPin {...props} />;
-}
-
-function CoffeeIcon(props: React.ComponentProps<typeof Store>) {
-  return <Store {...props} />;
-}
 
 function MiniLabel({ children, tone = "default" }: { children: React.ReactNode; tone?: "default" | "teal" | "amber" | "saffron" | "coral" | "green" }) {
   return (
@@ -166,8 +186,8 @@ function AppHeader({ mode, setMode, onRestart, destination }: { mode: Mode; setM
   return (
     <header className="sticky top-0 z-40 flex h-19 items-center justify-between border-b border-ink/10 bg-paper/90 px-6 backdrop-blur-xl lg:px-9">
       <div className="flex items-center gap-3">
-        <div className="brand-mark brand-mark-small"><span className="brand-glyph">N</span></div>
-        <span className="font-display text-xl font-semibold tracking-tighter text-ink">Nomad<span className="font-sans font-bold text-teal">Sync</span></span>
+        <div className="brand-mark brand-mark-small"><span className="brand-glyph">O</span></div>
+        <span className="font-display text-xl font-semibold tracking-tighter text-ink">Orbit<span className="font-sans font-bold text-teal">Sync</span></span>
       </div>
       <div className="hidden items-center gap-3 lg:flex">
         <span className="eyebrow text-ink-muted">Live product visualization</span>
@@ -196,9 +216,9 @@ function Sidebar({ step, setStep }: { step: TravelerStep; setStep: (step: Travel
   return (
     <aside className="fixed inset-y-0 left-0 z-50 hidden w-63 flex-col bg-ink px-5 py-6 text-paper lg:flex">
       <div className="flex items-center gap-3 px-2">
-        <div className="brand-mark"><span className="brand-glyph">N</span></div>
+        <div className="brand-mark"><span className="brand-glyph">O</span></div>
         <div>
-          <div className="font-display text-[22px] font-semibold tracking-tighter">Nomad<span className="font-sans text-teal-light">Sync</span></div>
+          <div className="font-display text-[22px] font-semibold tracking-tighter">Orbit<span className="font-sans text-teal-light">Sync</span></div>
           <div className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-paper/45">Travel OS</div>
         </div>
       </div>
@@ -279,6 +299,106 @@ function PriceBar({ total, delta }: { total: string; delta?: string }) {
 
 type PickupMode = "home" | "hotel" | "custom";
 
+// Destination autocomplete using OpenStreetMap Nominatim API
+function useDestinationAutocomplete() {
+  const [suggestions, setSuggestions] = useState<Array<{ display_name: string; lat: string; lon: string }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const search = useCallback((query: string) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    if (query.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    setLoading(true);
+    timeoutRef.current = setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1&featuretype=city&featuretype=town&featuretype=village`
+        );
+        const data = await response.json();
+        setSuggestions(data);
+        setShowSuggestions(true);
+      } catch (error) {
+        console.error("Error fetching suggestions:", error);
+        setSuggestions([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
+  }, []);
+
+  const clearSuggestions = useCallback(() => {
+    setSuggestions([]);
+    setShowSuggestions(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  return { suggestions, loading, showSuggestions, search, clearSuggestions, setShowSuggestions };
+}
+
+function TravelerCounter({ 
+  label, 
+  value, 
+  onIncrement, 
+  onDecrement, 
+  icon: Icon,
+  min = 0
+}: { 
+  label: string; 
+  value: number; 
+  onIncrement: () => void; 
+  onDecrement: () => void;
+  icon: React.ElementType;
+  min?: number;
+}) {
+  return (
+    <div className="flex items-center justify-between py-2">
+      <div className="flex items-center gap-2">
+        <Icon size={16} className="text-ink-muted" />
+        <span className="text-sm font-medium text-ink">{label}</span>
+      </div>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onDecrement}
+          disabled={value <= min}
+          className={cn(
+            "flex h-7 w-7 items-center justify-center rounded-lg border transition-colors",
+            value <= min 
+              ? "border-ink/10 text-ink-muted/40 cursor-not-allowed" 
+              : "border-ink/20 text-ink hover:bg-ink/5"
+          )}
+        >
+          <span className="text-lg leading-none">−</span>
+        </button>
+        <span className="w-6 text-center text-sm font-semibold text-ink">{value}</span>
+        <button
+          type="button"
+          onClick={onIncrement}
+          className="flex h-7 w-7 items-center justify-center rounded-lg border border-ink/20 text-ink hover:bg-ink/5 transition-colors"
+        >
+          <span className="text-lg leading-none">+</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function IntakeCanvas({
   destination,
   setDestination,
@@ -295,6 +415,12 @@ function IntakeCanvas({
   setPickupAddress,
   styles,
   setStyles,
+  adults,
+  setAdults,
+  childrenCount,
+  setChildrenCount,
+  infants,
+  setInfants,
   onBuild,
 }: {
   destination: string;
@@ -312,23 +438,157 @@ function IntakeCanvas({
   setPickupAddress: (value: string) => void;
   styles: string[];
   setStyles: (value: string[]) => void;
+  adults: number;
+  setAdults: (value: number) => void;
+  childrenCount: number;
+  setChildrenCount: (value: number) => void;
+  infants: number;
+  setInfants: (value: number) => void;
   onBuild: () => void;
 }) {
   const toggleStyle = (label: string) => setStyles(styles.includes(label) ? styles.filter((item) => item !== label) : [...styles, label]);
   const nights = Math.max(durationDays - 1, 0);
+  const { suggestions, loading, showSuggestions, search, clearSuggestions, setShowSuggestions } = useDestinationAutocomplete();
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [date, setDate] = useState<Date | undefined>(new Date());
+
+  const handleDestinationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setDestination(value);
+    search(value);
+  };
+
+  const handleSuggestionSelect = (suggestion: { display_name: string; lat: string; lon: string }) => {
+    setDestination(suggestion.display_name);
+    clearSuggestions();
+  };
+
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      setDate(date);
+      setDates(format(date, "dd MMM yyyy"));
+      setCalendarOpen(false);
+    }
+  };
+
+  const totalTravelers = adults + childrenCount + infants;
+  const basePricePerAdult = 47800;
+  const pricePerChild = 25000;
+  const pricePerInfant = 10000;
+  const basePrice = basePricePerAdult * adults + pricePerChild * childrenCount + pricePerInfant * infants;
+
   return (
     <div className="space-y-8 animate-fade-up">
-      <div className="section-heading max-w-3xl"><MiniLabel tone="teal">01 / Intake Canvas</MiniLabel><h1>Build a trip that can <em>bend</em> without breaking.</h1><p>Tell NomadSync how you want to move. The route, stays, local stops, and live operations will shape around you.</p></div>
+      <div className="section-heading max-w-3xl"><MiniLabel tone="teal">01 / Intake Canvas</MiniLabel><h1>Build a trip that can <em>bend</em> without breaking.</h1><p>Tell Orbit how you want to move. The route, stays, local stops, and live operations will shape around you.</p></div>
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <Card className="form-card">
           <div className="flex items-start justify-between gap-4"><div><p className="eyebrow text-ink-muted">Trip brief</p><h2 className="mt-2 font-display text-2xl font-semibold tracking-tighter">Where should the route begin?</h2></div><div className="rounded-xl bg-teal/10 px-3 py-2 text-xs font-bold text-teal">Draft 01</div></div>
           <div className="mt-8 space-y-6">
-            <label className="field-label">Destination<div className="field-shell"><MapPin size={17} className="text-teal" /><input value={destination} onChange={(event) => setDestination(event.target.value)} placeholder="e.g. Jaipur, Rajasthan" aria-label="Destination" /></div></label>
+            <div>
+              <label className="field-label">Destination</label>
+              <div className="relative">
+                <div className="field-shell">
+                  <MapPin size={17} className="text-teal" />
+                  <input 
+                    value={destination} 
+                    onChange={handleDestinationChange}
+                    onFocus={() => destination.length >= 2 && setShowSuggestions(true)}
+                    placeholder="e.g. Jaipur, Rajasthan" 
+                    aria-label="Destination" 
+                  />
+                  {loading && <div className="h-4 w-4 animate-spin rounded-full border-2 border-teal border-t-transparent" />}
+                </div>
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border border-ink/10 bg-paper shadow-lg">
+                    {suggestions.map((suggestion, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => handleSuggestionSelect(suggestion)}
+                        className="w-full px-4 py-3 text-left text-sm hover:bg-teal/5 transition-colors border-b border-ink/5 last:border-b-0"
+                      >
+                        {suggestion.display_name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="field-label">Dates<div className="field-shell"><CalendarDays size={17} className="text-ink-muted" /><input value={dates} onChange={(event) => setDates(event.target.value)} placeholder="e.g. 12 — 14 Feb 2026" aria-label="Dates" /></div></label>
+              <div>
+                <label className="field-label">Dates</label>
+                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                  <PopoverTrigger asChild>
+                    <button className="field-shell w-full text-left">
+                      <CalendarDays size={17} className="text-ink-muted" />
+                      <span className={cn("flex-1", !dates && "text-ink-muted/60")}>
+                        {dates || "Select dates"}
+                      </span>
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      onSelect={handleDateSelect}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
               <label className="field-label">Duration<div className="field-shell"><Timer size={17} className="text-ink-muted" /><select value={durationDays} onChange={(event) => setDurationDays(Number(event.target.value))} aria-label="Duration" className="w-full bg-transparent text-sm text-ink outline-none">{Array.from({ length: 7 }, (_, index) => index + 1).map((day) => <option key={day} value={day}>{day} day{day > 1 ? "s" : ""} · {Math.max(day - 1, 0)} night{Math.max(day - 1, 0) !== 1 ? "s" : ""}</option>)}</select></div></label>
             </div>
-            <div><div className="mb-3 flex items-center justify-between"><label className="field-label">Spending limit</label><span className="font-display text-lg font-semibold text-ink">₹{budget[0].toLocaleString("en-IN")}</span></div><Slider value={budget} onValueChange={setBudget} min={10000} max={200000} step={1000} /><div className="mt-2 flex justify-between text-[11px] text-ink-muted"><span>₹10,000</span><span>Hard limit</span><span>₹2,00,000</span></div></div>
+            
+            <div>
+              <label className="field-label mb-3">Travelers</label>
+              <Card className="p-4 border-ink/10">
+                <TravelerCounter 
+                  label="Adults" 
+                  value={adults} 
+                  onIncrement={() => setAdults(adults + 1)} 
+                  onDecrement={() => setAdults(adults - 1)} 
+                  icon={User}
+                  min={1}
+                />
+                <TravelerCounter 
+                  label="Children (5-12)" 
+                  value={childrenCount} 
+                  onIncrement={() => setChildrenCount(childrenCount + 1)} 
+                  onDecrement={() => setChildrenCount(childrenCount - 1)} 
+                  icon={UserPlus}
+                />
+                <TravelerCounter 
+                  label="Infants (0-4)" 
+                  value={infants} 
+                  onIncrement={() => setInfants(infants + 1)} 
+                  onDecrement={() => setInfants(infants - 1)} 
+                  icon={Baby}
+                />
+                <div className="mt-2 pt-2 border-t border-ink/8 flex justify-between text-sm">
+                  <span className="text-ink-muted">Total travelers</span>
+                  <span className="font-semibold text-ink">{totalTravelers}</span>
+                </div>
+              </Card>
+            </div>
+
+            <div><div className="mb-3 flex items-center justify-between"><label className="field-label">Spending limit</label><span className="font-display text-lg font-semibold text-ink">₹{budget[0].toLocaleString("en-IN")}</span></div>
+              <Slider 
+                value={budget} 
+                onValueChange={(value) => {
+                  // If value is 0, set to minimum (1000)
+                  const newValue = value[0] === 0 ? 1000 : value[0];
+                  setBudget([newValue]);
+                }} 
+                min={0} 
+                max={200000} 
+                step={1000} 
+              />
+              <div className="mt-2 flex justify-between text-[11px] text-ink-muted">
+                <span>₹0</span>
+                <span className="text-teal text-xs font-medium">Min: ₹1,000</span>
+                <span>₹2,00,000</span>
+              </div>
+            </div>
             <div>
               <p className="field-label mb-3">Pickup origin</p>
               <div className="grid grid-cols-2 gap-3">
@@ -354,7 +614,7 @@ function IntakeCanvas({
         </Card>
         <div className="relative min-h-130 overflow-hidden rounded-[28px] xl:mt-8 bg-ink shadow-[0_18px_50px_rgba(23,34,35,0.15)]">
           <img src={imageReference} alt={`Road toward ${routePlan.origin}`} className="absolute inset-0 h-full w-full object-cover opacity-80" /><div className="absolute inset-0 bg-linear-to-t from-ink via-ink/30 to-transparent" />
-          <div className="relative flex h-full flex-col justify-between p-6 text-paper sm:p-8"><div className="flex items-center justify-between"><span className="rounded-full border border-paper/18 bg-ink/20 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] backdrop-blur-sm">Route dossier · {routePlan.destination}</span><span className="flex items-center gap-2 rounded-full bg-paper/12 px-3 py-2 text-xs font-semibold backdrop-blur-sm"><span className="h-2 w-2 rounded-full bg-teal-light" /> Season-aware</span></div><div><div className="mb-5 flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-saffron text-ink"><Compass size={19} /></div><span className="text-sm font-medium text-paper/75">Your route will consider weather, buffers, and local character.</span></div><h2 className="max-w-md font-display text-4xl font-semibold leading-[0.98] tracking-tighter sm:text-5xl">A slower road to the <em className="text-saffron-light">good stuff.</em></h2><div className="mt-8 grid max-w-md grid-cols-3 gap-2 border-t border-paper/18 pt-5"><div><p className="text-2xl font-semibold">{durationDays}</p><p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-paper/52">Days</p></div><div><p className="text-2xl font-semibold">{nights}</p><p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-paper/52">Nights</p></div><div><p className="text-2xl font-semibold">30m</p><p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-paper/52">Buffer kept</p></div></div></div></div>
+          <div className="relative flex h-full flex-col justify-between p-6 text-paper sm:p-8"><div className="flex items-center justify-between"><span className="rounded-full border border-paper/18 bg-ink/20 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] backdrop-blur-sm">Route dossier · {routePlan.destination}</span><span className="flex items-center gap-2 rounded-full bg-paper/12 px-3 py-2 text-xs font-semibold backdrop-blur-sm"><span className="h-2 w-2 rounded-full bg-teal-light" /> Season-aware</span></div><div><div className="mb-5 flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-saffron text-ink"><Compass size={19} /></div><span className="text-sm font-medium text-paper/75">Your route will consider weather, buffers, and local character.</span></div><h2 className="max-w-md font-display text-4xl font-semibold leading-[0.98] tracking-tighter sm:text-5xl">A slower road to the <em className="text-saffron-light">good stuff.</em></h2><div className="mt-8 grid max-w-md grid-cols-3 gap-2 border-t border-paper/18 pt-5"><div><p className="text-2xl font-semibold">{durationDays}</p><p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-paper/52">Days</p></div><div><p className="text-2xl font-semibold">{nights}</p><p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-paper/52">Nights</p></div><div><p className="text-2xl font-semibold">{totalTravelers}</p><p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-paper/52">Travelers</p></div></div></div></div>
         </div>
       </div>
     </div>
@@ -403,7 +663,7 @@ function ChatDrawer({ onClose, onAdd, added }: { onClose: () => void; onAdd: () 
 function RouteRadar({ destination, routePlan, addedStop, onAddStop, tripTotal, onNext }: { destination: string; routePlan: RoutePlan; addedStop: boolean; onAddStop: () => void; tripTotal: number; onNext: () => void }) {
   const [drawer, setDrawer] = useState(false);
   const [activeDay, setActiveDay] = useState(1);
-  return <div className="space-y-8 animate-fade-up"><div className="section-heading flex flex-col justify-between gap-6 lg:flex-row lg:items-end"><div><MiniLabel tone="teal">02 / Route Radar</MiniLabel><h1>The route found room for <em>one more good stop.</em></h1><p>Route-aligned discovery, live driving buffers, and an assistant that knows when not to add more.</p></div><div className="flex items-center gap-2"><StatusChip tone="green">Feasible route</StatusChip><StatusChip tone="teal">8 waypoints</StatusChip></div></div><div className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]"><Card className="overflow-hidden p-0"><div className="flex items-center justify-between border-b border-ink/8 px-5 py-4"><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal/10 text-teal"><Route size={17} /></div><div><p className="text-sm font-bold text-ink">{routePlan.origin} → {routePlan.localStop}</p><p className="text-xs text-ink-muted">Day 1 · {routePlan.distance} · {routePlan.driveTime}</p></div></div><div className="flex gap-1.5">{[1, 2, 3].map((day) => <button key={day} type="button" onClick={() => { setActiveDay(day); toast.success(`Day ${day} route loaded`); }} className={cn("day-tab", activeDay === day && "day-tab-active")}>Day {day}</button>)}</div></div><div className="relative h-107.5 overflow-hidden bg-[#cbd9d3]"><RouteRadarMap destination={destination} originLabel={routePlan.origin} localStopLabel={routePlan.localStop} scenicStopLabel={routePlan.scenicStop} hotelLabel={routePlan.hotel} onLocalStopClick={() => setDrawer(true)} /><div className="pointer-events-none absolute bottom-4 left-4 rounded-xl border border-paper/50 bg-paper/88 px-3 py-2 shadow-sm backdrop-blur-md"><p className="eyebrow text-teal">Live route trace</p><p className="mt-1 text-xs font-semibold text-ink">Buffer protected · 30 min</p></div>{drawer && <ChatDrawer onClose={() => setDrawer(false)} onAdd={() => { onAddStop(); setDrawer(false); }} added={addedStop} />}</div></Card><div className="space-y-5"><Card className="p-5"><div className="flex items-center justify-between"><div><MiniLabel>Daily timeline</MiniLabel><p className="mt-2 text-sm font-bold text-ink">Friday · 12 February</p></div><button type="button" onClick={() => toast.info("Timeline options are available in the connected trip view")} className="icon-button" aria-label="Timeline options"><MoreHorizontal size={17} /></button></div><div className="mt-6 space-y-0">{[{ time: "07:30", label: "Home pickup", meta: "Driver · Rajesh K.", icon: HomeIcon, tone: "teal" }, { time: "11:40", label: routePlan.localStop, meta: addedStop ? "Added · 30 min buffer" : "Tap map pin to explore", icon: Store, tone: addedStop ? "saffron" : "muted" }, { time: "14:20", label: routePlan.scenicStop, meta: "45 min · scenic stop", icon: Compass, tone: "teal" }, { time: "17:30", label: "Heritage hotel check-in", meta: `${routePlan.hotel} · 2 nights`, icon: Hotel, tone: "teal" }].map((item, index) => { const Icon = item.icon; return <div key={item.label} className="timeline-row"><div className={cn("timeline-icon", item.tone === "saffron" ? "bg-saffron/12 text-saffron" : item.tone === "muted" ? "bg-ink/6 text-ink-muted" : "bg-teal/10 text-teal")}><Icon size={15} /></div><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><p className={cn("truncate text-xs font-bold", item.tone === "muted" ? "text-ink-muted" : "text-ink")}>{item.label}</p><span className="text-[10px] font-bold text-ink-muted">{item.time}</span></div><p className="mt-1 truncate text-[11px] text-ink-muted">{item.meta}</p></div>{index < 3 && <div className="timeline-connector" />}</div>; })}</div></Card><Card className="border-teal/12 bg-teal/5 p-5"><div className="flex items-start gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal text-white"><Bot size={17} /></div><div><MiniLabel tone="teal">Contextual assistant</MiniLabel><p className="mt-2 text-sm font-semibold leading-5 text-ink">“Your next open window is 30 minutes. Want a local stop instead of a generic rest area?”</p><button type="button" onClick={() => setDrawer(true)} className="mt-4 flex items-center gap-1.5 text-xs font-bold text-teal">Explore waypoint <ArrowRight size={13} /></button></div></div></Card></div></div><PriceBar total={`₹${tripTotal.toLocaleString("en-IN")}`} delta={addedStop ? "+₹240 · local stop added" : "Route base price"} /><div className="flex justify-end"><Button onClick={onNext} className="group h-11 rounded-xl bg-ink px-5 font-bold text-paper hover:bg-ink/90">Keep shaping the trip <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" /></Button></div></div>;
+  return <div className="space-y-8 animate-fade-up"><div className="section-heading flex flex-col justify-between gap-6 lg:flex-row lg:items-end"><div><MiniLabel tone="teal">02 / Route Radar</MiniLabel><h1>The route found room for <em>one more good stop.</em></h1><p>Route-aligned discovery, live driving buffers, and an assistant that knows when not to add more.</p></div><div className="flex items-center gap-2"><StatusChip tone="green">Feasible route</StatusChip><StatusChip tone="teal">8 waypoints</StatusChip></div></div><div className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]"><Card className="overflow-hidden p-0"><div className="flex items-center justify-between border-b border-ink/8 px-5 py-4"><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal/10 text-teal"><Route size={17} /></div><div><p className="text-sm font-bold text-ink">{routePlan.origin} → {routePlan.localStop}</p><p className="text-xs text-ink-muted">Day 1 · {routePlan.distance} · {routePlan.driveTime}</p></div></div><div className="flex gap-1.5">{[1, 2, 3].map((day) => <button key={day} type="button" onClick={() => { setActiveDay(day); toast.success(`Day ${day} route loaded`); }} className={cn("day-tab", activeDay === day && "day-tab-active")}>Day {day}</button>)}</div></div><div className="relative h-107.5 overflow-hidden bg-[#cbd9d3]"><RouteRadarMap destination={destination} originLabel={routePlan.origin} localStopLabel={routePlan.localStop} scenicStopLabel={routePlan.scenicStop} hotelLabel={routePlan.hotel} onLocalStopClick={() => setDrawer(true)} /><div className="pointer-events-none absolute bottom-4 left-4 rounded-xl border border-paper/50 bg-paper/88 px-3 py-2 shadow-sm backdrop-blur-md"><p className="eyebrow text-teal">Live route trace</p><p className="mt-1 text-xs font-semibold text-ink">Buffer protected · 30 min</p></div>{drawer && <ChatDrawer onClose={() => setDrawer(false)} onAdd={() => { onAddStop(); setDrawer(false); }} added={addedStop} />}</div></Card><div className="space-y-5"><Card className="p-5"><div className="flex items-center justify-between"><div><MiniLabel>Daily timeline</MiniLabel><p className="mt-2 text-sm font-bold text-ink">Friday · 12 February</p></div><button type="button" onClick={() => toast.info("Timeline options are available in the connected trip view")} className="icon-button" aria-label="Timeline options"><MoreHorizontal size={17} /></button></div><div className="mt-6 space-y-0">{[{ time: "07:30", label: "Home pickup", meta: "Driver · Rajesh K.", icon: HomeIcon, tone: "teal" }, { time: "11:40", label: routePlan.localStop, meta: addedStop ? "Added · 30 min buffer" : "Tap map pin to explore", icon: Store, tone: addedStop ? "saffron" : "muted" }, { time: "14:20", label: routePlan.scenicStop, meta: "45 min · scenic stop", icon: Compass, tone: "teal" }, { time: "17:30", label: "Heritage hotel check-in", meta: `${routePlan.hotel} · 2 nights`, icon: Hotel, tone: "teal" }].map((item, index) => { const Icon = item.icon; return <div key={item.label} className="timeline-row"><div className={cn("timeline-icon", item.tone === "saffron" ? "bg-saffron/12 text-saffron" : item.tone === "muted" ? "bg-ink/6 text-ink-muted" : "bg-teal/10 text-teal")}><Icon size={15} /></div><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><p className={cn("truncate text-xs font-bold", item.tone === "muted" ? "text-ink-muted" : "text-ink")}>{item.label}</p><span className="text-[10px] font-bold text-ink-muted">{item.time}</span></div><p className="mt-1 truncate text-[11px] text-ink-muted">{item.meta}</p></div>{index < 3 && <div className="timeline-connector" />}</div>; })}</div></Card><Card className="border-teal/12 bg-teal/5 p-5"><div className="flex items-start gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal text-white"><Bot size={17} /></div><div><MiniLabel tone="teal">Contextual assistant</MiniLabel><p className="mt-2 text-sm font-semibold leading-5 text-ink">"Your next open window is 30 minutes. Want a local stop instead of a generic rest area?"</p><button type="button" onClick={() => setDrawer(true)} className="mt-4 flex items-center gap-1.5 text-xs font-bold text-teal">Explore waypoint <ArrowRight size={13} /></button></div></div></Card></div></div><PriceBar total={`₹${tripTotal.toLocaleString("en-IN")}`} delta={addedStop ? "+₹240 · local stop added" : "Route base price"} /><div className="flex justify-end"><Button onClick={onNext} className="group h-11 rounded-xl bg-ink px-5 font-bold text-paper hover:bg-ink/90">Keep shaping the trip <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" /></Button></div></div>;
 }
 
 function Customization({ upgraded, setUpgraded, addedStop, tripTotal, onNext }: { upgraded: boolean; setUpgraded: (value: boolean) => void; addedStop: boolean; tripTotal: number; onNext: () => void }) {
@@ -413,7 +673,7 @@ function Customization({ upgraded, setUpgraded, addedStop, tripTotal, onNext }: 
     { type: "Activity", title: "Amber Fort at golden hour", copy: "Local guide · 45 min viewpoint buffer", price: "₹2,800", image: "https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=720&q=80", selected: true },
     { type: "Transport", title: "Sedan + local driver", copy: "Rest windows protected · 3 days", price: "₹18,400", image: "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=720&q=80", selected: true },
   ];
-  return <div className="space-y-8 animate-fade-up"><div className="section-heading"><MiniLabel tone="teal">03 / Modular Customize</MiniLabel><h1>Make the itinerary feel <em>like yours.</em></h1><p>Swap the parts that matter. NomadSync keeps the route, margin, and driver rest buffer in view.</p></div><div className="grid gap-6 xl:grid-cols-[1fr_330px]"><div className="space-y-4">{options.map((option, index) => <Card key={option.title} className="custom-option-card"><img src={option.image} alt="" className="h-28 w-36 shrink-0 rounded-xl object-cover sm:h-32 sm:w-44" /><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><div><MiniLabel tone={index === 1 ? "saffron" : "teal"}>{option.type}</MiniLabel><h3 className="mt-2 truncate font-display text-xl font-semibold tracking-tighter text-ink">{option.title}</h3><p className="mt-1 text-xs text-ink-muted">{option.copy}</p></div><span className="hidden text-sm font-bold text-ink sm:block">{option.price}</span></div><div className="mt-4 flex items-center gap-3"><StatusChip tone="green">Feasible</StatusChip><button type="button" onClick={() => toast.info(`${option.title} · ${option.copy}`)} className="text-xs font-bold text-teal hover:underline">View details</button>{index === 0 && <button type="button" onClick={() => setUpgraded(!upgraded)} className={cn("ml-auto rounded-lg border px-3 py-2 text-xs font-bold transition-colors", upgraded ? "border-teal/20 bg-teal/10 text-teal" : "border-ink/12 text-ink-muted hover:border-teal/30 hover:text-teal")}>{upgraded ? "Upgraded" : "Swap room"}</button>}</div></div></Card>)}</div><Card className="h-fit p-5 xl:sticky xl:top-28"><div className="flex items-center justify-between"><MiniLabel>Live delta pricing</MiniLabel><TrendingUp size={16} className="text-teal" /></div><div className="mt-5 rounded-2xl bg-ink p-4 text-paper"><p className="text-xs text-paper/52">Current total</p><p className="mt-1 font-display text-3xl font-semibold tracking-tighter">₹{grandTotal.toLocaleString("en-IN")}</p><p className="mt-2 text-xs font-semibold text-teal-light">{upgraded ? "+₹1,200 · room upgrade" : addedStop ? "+₹240 · local stop" : "Route base price"}</p></div><div className="mt-5 space-y-3 border-b border-ink/8 pb-5 text-xs"><div className="flex justify-between"><span className="text-ink-muted">Trip base</span><strong>₹47,800</strong></div>{addedStop && <div className="flex justify-between"><span className="text-ink-muted">Samosa stop</span><strong className="text-teal">+₹240</strong></div>}{upgraded && <div className="flex justify-between"><span className="text-ink-muted">Room upgrade</span><strong className="text-teal">+₹1,200</strong></div>}</div><div className="mt-5 flex items-start gap-2.5 rounded-xl bg-moss/8 p-3"><BadgeCheck size={16} className="shrink-0 text-moss" /><p className="text-xs leading-5 text-ink/70">Schedule feasible: driver rest buffer preserved.</p></div><Button onClick={onNext} className="mt-5 h-11 w-full rounded-xl bg-ink font-bold text-paper hover:bg-ink/90">Review trip <ArrowRight size={16} className="ml-2" /></Button></Card></div></div>;
+  return <div className="space-y-8 animate-fade-up"><div className="section-heading"><MiniLabel tone="teal">03 / Modular Customize</MiniLabel><h1>Make the itinerary feel <em>like yours.</em></h1><p>Swap the parts that matter. Orbit keeps the route, margin, and driver rest buffer in view.</p></div><div className="grid gap-6 xl:grid-cols-[1fr_330px]"><div className="space-y-4">{options.map((option, index) => <Card key={option.title} className="custom-option-card"><img src={option.image} alt="" className="h-28 w-36 shrink-0 rounded-xl object-cover sm:h-32 sm:w-44" /><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><div><MiniLabel tone={index === 1 ? "saffron" : "teal"}>{option.type}</MiniLabel><h3 className="mt-2 truncate font-display text-xl font-semibold tracking-tighter text-ink">{option.title}</h3><p className="mt-1 text-xs text-ink-muted">{option.copy}</p></div><span className="hidden text-sm font-bold text-ink sm:block">{option.price}</span></div><div className="mt-4 flex items-center gap-3"><StatusChip tone="green">Feasible</StatusChip><button type="button" onClick={() => toast.info(`${option.title} · ${option.copy}`)} className="text-xs font-bold text-teal hover:underline">View details</button>{index === 0 && <button type="button" onClick={() => setUpgraded(!upgraded)} className={cn("ml-auto rounded-lg border px-3 py-2 text-xs font-bold transition-colors", upgraded ? "border-teal/20 bg-teal/10 text-teal" : "border-ink/12 text-ink-muted hover:border-teal/30 hover:text-teal")}>{upgraded ? "Upgraded" : "Swap room"}</button>}</div></div></Card>)}</div><Card className="h-fit p-5 xl:sticky xl:top-28"><div className="flex items-center justify-between"><MiniLabel>Live delta pricing</MiniLabel><TrendingUp size={16} className="text-teal" /></div><div className="mt-5 rounded-2xl bg-ink p-4 text-paper"><p className="text-xs text-paper/52">Current total</p><p className="mt-1 font-display text-3xl font-semibold tracking-tighter">₹{grandTotal.toLocaleString("en-IN")}</p><p className="mt-2 text-xs font-semibold text-teal-light">{upgraded ? "+₹1,200 · room upgrade" : addedStop ? "+₹240 · local stop" : "Route base price"}</p></div><div className="mt-5 space-y-3 border-b border-ink/8 pb-5 text-xs"><div className="flex justify-between"><span className="text-ink-muted">Trip base</span><strong>₹47,800</strong></div>{addedStop && <div className="flex justify-between"><span className="text-ink-muted">Samosa stop</span><strong className="text-teal">+₹240</strong></div>}{upgraded && <div className="flex justify-between"><span className="text-ink-muted">Room upgrade</span><strong className="text-teal">+₹1,200</strong></div>}</div><div className="mt-5 flex items-start gap-2.5 rounded-xl bg-moss/8 p-3"><BadgeCheck size={16} className="shrink-0 text-moss" /><p className="text-xs leading-5 text-ink/70">Schedule feasible: driver rest buffer preserved.</p></div><Button onClick={onNext} className="mt-5 h-11 w-full rounded-xl bg-ink font-bold text-paper hover:bg-ink/90">Review trip <ArrowRight size={16} className="ml-2" /></Button></Card></div></div>;
 }
 
 function Checkout({ addedStop, upgraded, onNext }: { addedStop: boolean; upgraded: boolean; onNext: () => void }) {
@@ -424,7 +684,7 @@ function Checkout({ addedStop, upgraded, onNext }: { addedStop: boolean; upgrade
   const servicePrice = 4000;
   const localStopPrice = addedStop ? 240 : 0;
   const grandTotal = hotelsPrice + transportPrice + activitiesPrice + servicePrice + localStopPrice;
-  return <div className="space-y-8 animate-fade-up"><div className="section-heading"><MiniLabel tone="teal">04 / Single Checkout</MiniLabel><h1>Everything aligned. <em>One calm checkout.</em></h1><p>A single view of every commitment before the route becomes real.</p></div><div className="grid gap-6 xl:grid-cols-[1fr_380px]"><Card className="p-6"><div className="flex items-center justify-between border-b border-ink/8 pb-5"><div><p className="eyebrow text-ink-muted">Feasibility check</p><h2 className="mt-2 font-display text-2xl font-semibold tracking-tighter">The route is holding.</h2></div><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-moss/10 text-moss"><CheckCircle2 size={23} /></div></div><div className="mt-6 space-y-3">{checks.map((check, index) => <div key={check} className="flex items-center gap-3 rounded-xl bg-paper-dark px-4 py-3"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-moss/12 text-moss"><Check size={13} /></span><span className="text-sm text-ink/78">{check}</span><span className="ml-auto text-[10px] font-bold uppercase tracking-[0.12em] text-moss">Passed</span></div>)}</div><div className="mt-8 rounded-2xl border border-saffron/20 bg-saffron/8 p-4"><div className="flex items-center gap-2"><Sparkles size={16} className="text-saffron" /><span className="text-xs font-bold text-ink">Small detail, big difference</span></div><p className="mt-2 text-sm leading-6 text-ink/72">Your local stop is locked to the route buffer. If the road changes, NomadSync will recalculate downstream plans—not leave you with a stale PDF.</p></div></Card><Card className="h-fit p-6"><div className="flex items-center justify-between"><p className="eyebrow text-ink-muted">Trip ledger</p><span className="flex items-center gap-1.5 text-[11px] font-bold text-moss"><LockKeyhole size={13} /> Secure demo</span></div><div className="mt-5 space-y-4 text-sm"><div className="flex justify-between"><span className="text-ink-muted">Hotels · 2 nights</span><strong>₹{hotelsPrice.toLocaleString("en-IN")}</strong></div><div className="flex justify-between"><span className="text-ink-muted">Transport · 3 days</span><strong>₹{transportPrice.toLocaleString("en-IN")}</strong></div><div className="flex justify-between"><span className="text-ink-muted">Activities & guide</span><strong>₹{activitiesPrice.toLocaleString("en-IN")}</strong></div>{addedStop && <div className="flex justify-between"><span className="text-ink-muted">Local stop voucher</span><strong>₹{localStopPrice.toLocaleString("en-IN")}</strong></div>}<div className="flex justify-between"><span className="text-ink-muted">NomadSync service</span><strong>₹{servicePrice.toLocaleString("en-IN")}</strong></div></div><div className="my-5 border-t border-ink/8" /><div className="flex items-end justify-between"><span className="text-sm font-bold text-ink">Trip total</span><span className="font-display text-3xl font-semibold tracking-tighter text-ink">₹{grandTotal.toLocaleString("en-IN")}</span></div><Button onClick={onNext} className="mt-6 h-12 w-full rounded-xl bg-teal font-bold text-white hover:bg-teal-dark"><CreditCard size={16} className="mr-2" /> Confirm visual booking</Button><p className="mt-3 text-center text-[11px] leading-5 text-ink-muted">Demo interaction only · no payment is processed</p></Card></div></div>;
+  return <div className="space-y-8 animate-fade-up"><div className="section-heading"><MiniLabel tone="teal">04 / Single Checkout</MiniLabel><h1>Everything aligned. <em>One calm checkout.</em></h1><p>A single view of every commitment before the route becomes real.</p></div><div className="grid gap-6 xl:grid-cols-[1fr_380px]"><Card className="p-6"><div className="flex items-center justify-between border-b border-ink/8 pb-5"><div><p className="eyebrow text-ink-muted">Feasibility check</p><h2 className="mt-2 font-display text-2xl font-semibold tracking-tighter">The route is holding.</h2></div><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-moss/10 text-moss"><CheckCircle2 size={23} /></div></div><div className="mt-6 space-y-3">{checks.map((check, index) => <div key={check} className="flex items-center gap-3 rounded-xl bg-paper-dark px-4 py-3"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-moss/12 text-moss"><Check size={13} /></span><span className="text-sm text-ink/78">{check}</span><span className="ml-auto text-[10px] font-bold uppercase tracking-[0.12em] text-moss">Passed</span></div>)}</div><div className="mt-8 rounded-2xl border border-saffron/20 bg-saffron/8 p-4"><div className="flex items-center gap-2"><Sparkles size={16} className="text-saffron" /><span className="text-xs font-bold text-ink">Small detail, big difference</span></div><p className="mt-2 text-sm leading-6 text-ink/72">Your local stop is locked to the route buffer. If the road changes, Orbit will recalculate downstream plans—not leave you with a stale PDF.</p></div></Card><Card className="h-fit p-6"><div className="flex items-center justify-between"><p className="eyebrow text-ink-muted">Trip ledger</p><span className="flex items-center gap-1.5 text-[11px] font-bold text-moss"><LockKeyhole size={13} /> Secure demo</span></div><div className="mt-5 space-y-4 text-sm"><div className="flex justify-between"><span className="text-ink-muted">Hotels · 2 nights</span><strong>₹{hotelsPrice.toLocaleString("en-IN")}</strong></div><div className="flex justify-between"><span className="text-ink-muted">Transport · 3 days</span><strong>₹{transportPrice.toLocaleString("en-IN")}</strong></div><div className="flex justify-between"><span className="text-ink-muted">Activities & guide</span><strong>₹{activitiesPrice.toLocaleString("en-IN")}</strong></div>{addedStop && <div className="flex justify-between"><span className="text-ink-muted">Local stop voucher</span><strong>₹{localStopPrice.toLocaleString("en-IN")}</strong></div>}<div className="flex justify-between"><span className="text-ink-muted">Orbit service</span><strong>₹{servicePrice.toLocaleString("en-IN")}</strong></div></div><div className="my-5 border-t border-ink/8" /><div className="flex items-end justify-between"><span className="text-sm font-bold text-ink">Trip total</span><span className="font-display text-3xl font-semibold tracking-tighter text-ink">₹{grandTotal.toLocaleString("en-IN")}</span></div><Button onClick={onNext} className="mt-6 h-12 w-full rounded-xl bg-teal font-bold text-white hover:bg-teal-dark"><CreditCard size={16} className="mr-2" /> Confirm visual booking</Button><p className="mt-3 text-center text-[11px] leading-5 text-ink-muted">Demo interaction only · no payment is processed</p></Card></div></div>;
 }
 
 function QrBlock() {
@@ -432,12 +692,12 @@ function QrBlock() {
 }
 
 function DigitalPass({ destination, onAdapt, vendorConfirmed }: { destination: string; onAdapt: () => void; vendorConfirmed: boolean }) {
-  return <div className="space-y-8 animate-fade-up"><div className="section-heading flex flex-col justify-between gap-5 md:flex-row md:items-end"><div><MiniLabel tone="teal">05 / Live Digital Pass</MiniLabel><h1>Your trip, <em>held together.</em></h1><p>Offline-ready details, privacy-safe local chat, and one button for the unexpected.</p></div><StatusChip tone={vendorConfirmed ? "green" : "teal"}>{vendorConfirmed ? "Vendor confirmed" : "Trip live"}</StatusChip></div><div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]"><Card className="pass-card"><div className="flex items-start justify-between"><div><div className="flex items-center gap-2"><div className="brand-mark brand-mark-tiny"><span className="brand-glyph">N</span></div><span className="eyebrow text-paper/55">NomadSync pass</span></div><h2 className="mt-5 font-display text-4xl font-semibold leading-none tracking-tighter">{destination}, with room<br />for <em className="text-saffron-light">wonder.</em></h2></div><span className="rounded-full border border-paper/15 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.13em] text-paper/58">TRP · 8029</span></div><div className="mt-12 grid grid-cols-2 gap-4 border-t border-paper/15 pt-5 sm:grid-cols-4"><div><p className="eyebrow text-paper/42">Traveler</p><p className="mt-1 text-sm font-semibold">Aanya Sharma</p></div><div><p className="eyebrow text-paper/42">Dates</p><p className="mt-1 text-sm font-semibold">12–14 Feb</p></div><div><p className="eyebrow text-paper/42">Pickup</p><p className="mt-1 text-sm font-semibold">Home</p></div><div><p className="eyebrow text-paper/42">Status</p><p className="mt-1 text-sm font-semibold text-teal-light">Live</p></div></div><div className="mt-7 flex flex-col gap-3 sm:flex-row"><button type="button" onClick={() => toast.success("Driver tracking opened · Rajesh is 12 minutes ahead")} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-paper/10 px-4 py-3 text-xs font-bold text-paper hover:bg-paper/15"><Navigation size={15} /> Track driver</button><button type="button" onClick={() => toast.success("Privacy relay chat is ready for the operator handoff")} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-paper/10 px-4 py-3 text-xs font-bold text-paper hover:bg-paper/15"><MessageCircle size={15} /> Privacy chat</button></div></Card><div className="space-y-5"><Card className="p-5"><div className="flex items-center justify-between"><div><MiniLabel>Today · Day 1</MiniLabel><p className="mt-2 text-sm font-bold text-ink">Your travel drawer</p></div><QrBlock /></div><div className="mt-5 grid grid-cols-2 gap-3"><button type="button" onClick={() => toast.success("QR voucher opened · ₹120 fixed rate")} className="pass-item text-left"><Store size={15} className="text-saffron" /><div><strong>Sharma Ji</strong><span>QR voucher · ₹120 fixed</span></div><ArrowRight size={14} className="ml-auto text-ink-muted" /></button><div className="pass-item"><Hotel size={15} className="text-teal" /><div><strong>Hotel check-in</strong><span>17:30 · Pushkar</span></div></div><div className="pass-item"><Phone size={15} className="text-teal" /><div><strong>Driver contact</strong><span>Rajesh · masked</span></div></div><div className="pass-item"><FileCheck2 size={15} className="text-moss" /><div><strong>Offline ready</strong><span>All details saved</span></div></div></div></Card><button type="button" onClick={onAdapt} className="adapt-button"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber text-ink"><CloudRain size={19} /></span><span className="flex-1 text-left"><MiniLabel tone="amber">Weather watch</MiniLabel><strong className="mt-1 block text-sm text-ink">Adapt My Day</strong><small className="mt-1 block text-xs text-ink-muted">Rain may affect your outdoor trek at 2:00 PM.</small></span><ArrowRight size={17} className="text-ink-muted" /></button></div></div></div>;
+  return <div className="space-y-8 animate-fade-up"><div className="section-heading flex flex-col justify-between gap-5 md:flex-row md:items-end"><div><MiniLabel tone="teal">05 / Live Digital Pass</MiniLabel><h1>Your trip, <em>held together.</em></h1><p>Offline-ready details, privacy-safe local chat, and one button for the unexpected.</p></div><StatusChip tone={vendorConfirmed ? "green" : "teal"}>{vendorConfirmed ? "Vendor confirmed" : "Trip live"}</StatusChip></div><div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]"><Card className="pass-card"><div className="flex items-start justify-between"><div><div className="flex items-center gap-2"><div className="brand-mark brand-mark-tiny"><span className="brand-glyph">O</span></div><span className="eyebrow text-paper/55">Orbit pass</span></div><h2 className="mt-5 font-display text-4xl font-semibold leading-none tracking-tighter">{destination}, with room<br />for <em className="text-saffron-light">wonder.</em></h2></div><span className="rounded-full border border-paper/15 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.13em] text-paper/58">TRP · 8029</span></div><div className="mt-12 grid grid-cols-2 gap-4 border-t border-paper/15 pt-5 sm:grid-cols-4"><div><p className="eyebrow text-paper/42">Traveler</p><p className="mt-1 text-sm font-semibold">Aanya Sharma</p></div><div><p className="eyebrow text-paper/42">Dates</p><p className="mt-1 text-sm font-semibold">12–14 Feb</p></div><div><p className="eyebrow text-paper/42">Pickup</p><p className="mt-1 text-sm font-semibold">Home</p></div><div><p className="eyebrow text-paper/42">Status</p><p className="mt-1 text-sm font-semibold text-teal-light">Live</p></div></div><div className="mt-7 flex flex-col gap-3 sm:flex-row"><button type="button" onClick={() => toast.success("Driver tracking opened · Rajesh is 12 minutes ahead")} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-paper/10 px-4 py-3 text-xs font-bold text-paper hover:bg-paper/15"><Navigation size={15} /> Track driver</button><button type="button" onClick={() => toast.success("Privacy relay chat is ready for the operator handoff")} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-paper/10 px-4 py-3 text-xs font-bold text-paper hover:bg-paper/15"><MessageCircle size={15} /> Privacy chat</button></div></Card><div className="space-y-5"><Card className="p-5"><div className="flex items-center justify-between"><div><MiniLabel>Today · Day 1</MiniLabel><p className="mt-2 text-sm font-bold text-ink">Your travel drawer</p></div><QrBlock /></div><div className="mt-5 grid grid-cols-2 gap-3"><button type="button" onClick={() => toast.success("QR voucher opened · ₹120 fixed rate")} className="pass-item text-left"><Store size={15} className="text-saffron" /><div><strong>Sharma Ji</strong><span>QR voucher · ₹120 fixed</span></div><ArrowRight size={14} className="ml-auto text-ink-muted" /></button><div className="pass-item"><Hotel size={15} className="text-teal" /><div><strong>Hotel check-in</strong><span>17:30 · Pushkar</span></div></div><div className="pass-item"><Phone size={15} className="text-teal" /><div><strong>Driver contact</strong><span>Rajesh · masked</span></div></div><div className="pass-item"><FileCheck2 size={15} className="text-moss" /><div><strong>Offline ready</strong><span>All details saved</span></div></div></div></Card><button type="button" onClick={onAdapt} className="adapt-button"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber text-ink"><CloudRain size={19} /></span><span className="flex-1 text-left"><MiniLabel tone="amber">Weather watch</MiniLabel><strong className="mt-1 block text-sm text-ink">Adapt My Day</strong><small className="mt-1 block text-xs text-ink-muted">Rain may affect your outdoor trek at 2:00 PM.</small></span><ArrowRight size={17} className="text-ink-muted" /></button></div></div></div>;
 }
 
 function RippleOptions({ onResolve, resolved }: { onResolve: (key: string) => void; resolved: boolean }) {
   const [selectedKey, setSelectedKey] = useState("A");
-  return <div className="space-y-8 animate-fade-up"><div className="section-heading"><MiniLabel tone="amber">06 / Ripple Engine</MiniLabel><h1>The plan changed. <em>The trip doesn’t have to.</em></h1><p>NomadSync checks time, distance, preferences, vendor availability, and cost—then gives the operator a clear choice.</p></div><div className="grid gap-6 xl:grid-cols-[0.7fr_1.3fr]"><Card className="border-amber/22 bg-amber/7 p-6"><div className="flex items-start gap-4"><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber text-ink"><CloudRain size={22} /></div><div><MiniLabel tone="amber">Conflict detected</MiniLabel><h2 className="mt-2 font-display text-2xl font-semibold leading-tight tracking-tighter text-ink">Heavy rain at 2:00 PM</h2><p className="mt-3 text-sm leading-6 text-ink/70">Outdoor trek is no longer safe. Three downstream bookings are affected.</p></div></div><div className="mt-8 space-y-3 border-t border-amber/18 pt-5 text-xs"><div className="flex justify-between"><span className="text-ink-muted">Affected day</span><strong>Day 2 · 12:30–16:00</strong></div><div className="flex justify-between"><span className="text-ink-muted">Traveler preference</span><strong>Culture · Food</strong></div><div className="flex justify-between"><span className="text-ink-muted">Operators impacted</span><strong>4 vendors</strong></div></div><div className="mt-6 flex items-center gap-2 text-xs font-bold text-amber-dark"><Activity size={15} /> Ripple analysis ready</div></Card><Card className="p-6"><div className="flex items-center justify-between border-b border-ink/8 pb-5"><div><MiniLabel>Resolution paths</MiniLabel><p className="mt-2 text-sm font-bold text-ink">Choose how the route should bend.</p></div><span className="rounded-full bg-teal/10 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-teal">3 options</span></div><div className="mt-5 space-y-3">{[{ key: "A", title: "Swap for Indoor Art Gallery", copy: "Keep the day intact. Fits Aanya's culture preference.", meta: "No timing change", price: "₹0 delta", selected: true }, { key: "B", title: "Reschedule trek to Day 3", copy: "Move the outdoor activity after the Pushkar stay.", meta: "+45 min on Day 3", price: "+₹400", selected: false }, { key: "C", title: "Issue instant refund credit", copy: "Cancel the trek and preserve the rest of the route.", meta: "Vendor credit issued", price: "−₹1,800", selected: false }].map((option) => <button type="button" key={option.key} onClick={() => !resolved && setSelectedKey(option.key)} className={cn("ripple-option w-full text-left", selectedKey === option.key && !resolved && "ripple-option-active", resolved && option.key === "A" && "ripple-option-resolved")}><div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold", selectedKey === option.key ? "bg-teal text-white" : "bg-ink/7 text-ink-muted")}>{option.key}</div><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><div><strong className="text-sm text-ink">{option.title}</strong><p className="mt-1 text-xs leading-5 text-ink-muted">{option.copy}</p></div>{selectedKey === option.key && !resolved && <span className="rounded-full bg-teal/10 px-2 py-1 text-[10px] font-bold text-teal">Recommended</span>}{resolved && option.key === "A" && <span className="rounded-full bg-moss/10 px-2 py-1 text-[10px] font-bold text-moss">Applied</span>}</div><div className="mt-3 flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-ink-muted"><span>{option.meta}</span><span className={option.price.startsWith("−") ? "text-moss" : option.price.startsWith("+") ? "text-amber-dark" : "text-teal"}>{option.price}</span></div></div></button>)}</div><Button onClick={() => onResolve(selectedKey)} disabled={resolved} className={cn("mt-5 h-11 w-full rounded-xl font-bold", resolved ? "bg-moss text-white hover:bg-moss" : "bg-ink text-paper hover:bg-ink/90")}>{resolved ? <><Check size={16} className="mr-2" /> Ripple resolved across trip</> : <><Zap size={16} className="mr-2 text-saffron-light" /> Resolve with Option {selectedKey}</>}</Button></Card></div></div>;
+  return <div className="space-y-8 animate-fade-up"><div className="section-heading"><MiniLabel tone="amber">06 / Ripple Engine</MiniLabel><h1>The plan changed. <em>The trip doesn't have to.</em></h1><p>Orbit checks time, distance, preferences, vendor availability, and cost—then gives the operator a clear choice.</p></div><div className="grid gap-6 xl:grid-cols-[0.7fr_1.3fr]"><Card className="border-amber/22 bg-amber/7 p-6"><div className="flex items-start gap-4"><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber text-ink"><CloudRain size={22} /></div><div><MiniLabel tone="amber">Conflict detected</MiniLabel><h2 className="mt-2 font-display text-2xl font-semibold leading-tight tracking-tighter text-ink">Heavy rain at 2:00 PM</h2><p className="mt-3 text-sm leading-6 text-ink/70">Outdoor trek is no longer safe. Three downstream bookings are affected.</p></div></div><div className="mt-8 space-y-3 border-t border-amber/18 pt-5 text-xs"><div className="flex justify-between"><span className="text-ink-muted">Affected day</span><strong>Day 2 · 12:30–16:00</strong></div><div className="flex justify-between"><span className="text-ink-muted">Traveler preference</span><strong>Culture · Food</strong></div><div className="flex justify-between"><span className="text-ink-muted">Operators impacted</span><strong>4 vendors</strong></div></div><div className="mt-6 flex items-center gap-2 text-xs font-bold text-amber-dark"><Activity size={15} /> Ripple analysis ready</div></Card><Card className="p-6"><div className="flex items-center justify-between border-b border-ink/8 pb-5"><div><MiniLabel>Resolution paths</MiniLabel><p className="mt-2 text-sm font-bold text-ink">Choose how the route should bend.</p></div><span className="rounded-full bg-teal/10 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-teal">3 options</span></div><div className="mt-5 space-y-3">{[{ key: "A", title: "Swap for Indoor Art Gallery", copy: "Keep the day intact. Fits Aanya's culture preference.", meta: "No timing change", price: "₹0 delta", selected: true }, { key: "B", title: "Reschedule trek to Day 3", copy: "Move the outdoor activity after the Pushkar stay.", meta: "+45 min on Day 3", price: "+₹400", selected: false }, { key: "C", title: "Issue instant refund credit", copy: "Cancel the trek and preserve the rest of the route.", meta: "Vendor credit issued", price: "−₹1,800", selected: false }].map((option) => <button type="button" key={option.key} onClick={() => !resolved && setSelectedKey(option.key)} className={cn("ripple-option w-full text-left", selectedKey === option.key && !resolved && "ripple-option-active", resolved && option.key === "A" && "ripple-option-resolved")}><div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold", selectedKey === option.key ? "bg-teal text-white" : "bg-ink/7 text-ink-muted")}>{option.key}</div><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><div><strong className="text-sm text-ink">{option.title}</strong><p className="mt-1 text-xs leading-5 text-ink-muted">{option.copy}</p></div>{selectedKey === option.key && !resolved && <span className="rounded-full bg-teal/10 px-2 py-1 text-[10px] font-bold text-teal">Recommended</span>}{resolved && option.key === "A" && <span className="rounded-full bg-moss/10 px-2 py-1 text-[10px] font-bold text-moss">Applied</span>}</div><div className="mt-3 flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-ink-muted"><span>{option.meta}</span><span className={option.price.startsWith("−") ? "text-moss" : option.price.startsWith("+") ? "text-amber-dark" : "text-teal"}>{option.price}</span></div></div></button>)}</div><Button onClick={() => onResolve(selectedKey)} disabled={resolved} className={cn("mt-5 h-11 w-full rounded-xl font-bold", resolved ? "bg-moss text-white hover:bg-moss" : "bg-ink text-paper hover:bg-ink/90")}>{resolved ? <><Check size={16} className="mr-2" /> Ripple resolved across trip</> : <><Zap size={16} className="mr-2 text-saffron-light" /> Resolve with Option {selectedKey}</>}</Button></Card></div></div>;
 }
 
 function Complete({ resolved, resolutionKey }: { resolved: boolean; resolutionKey: string }) {
@@ -472,6 +732,12 @@ function TravelerView({
   onResolve,
   resolved,
   resolutionKey,
+  adults,
+  setAdults,
+  childrenCount,
+  setChildrenCount,
+  infants,
+  setInfants,
 }: {
   step: TravelerStep;
   setStep: (step: TravelerStep) => void;
@@ -500,6 +766,12 @@ function TravelerView({
   onResolve: (key: string) => void;
   resolved: boolean;
   resolutionKey: string;
+  adults: number;
+  setAdults: (value: number) => void;
+  childrenCount: number;
+  setChildrenCount: (value: number) => void;
+  infants: number;
+  setInfants: (value: number) => void;
 }) {
   switch (step) {
     case 0:
@@ -520,6 +792,12 @@ function TravelerView({
           setPickupAddress={setPickupAddress}
           styles={styles}
           setStyles={setStyles}
+          adults={adults}
+          setAdults={setAdults}
+          childrenCount={childrenCount}
+          setChildrenCount={setChildrenCount}
+          infants={infants}
+          setInfants={setInfants}
           onBuild={() => setStep(1)}
         />
       );
@@ -569,6 +847,9 @@ export default function Home() {
   const [pickupMode, setPickupMode] = useState<PickupMode>("home");
   const [pickupAddress, setPickupAddress] = useState("");
   const [styles, setStyles] = useState(["Local Street Food", "Culture & History"]);
+  const [adults, setAdults] = useState(2);
+  const [childrenCount, setChildrenCount] = useState(0);
+  const [infants, setInfants] = useState(0);
 
   const [addedStop, setAddedStop] = useState(false);
   const [tripTotal, setTripTotal] = useState(BASE_TRIP_PRICE);
@@ -606,6 +887,9 @@ export default function Home() {
     setVendorConfirmed(false);
     setResolved(false);
     setResolutionKey("A");
+    setAdults(2);
+    setChildrenCount(0);
+    setInfants(0);
   };
   const openAdapt = () => setStep(5);
   const resolve = (key = "A") => { setResolutionKey(key); setResolved(true); setStep(6); };
@@ -656,6 +940,12 @@ export default function Home() {
               onResolve={resolve}
               resolved={resolved}
               resolutionKey={resolutionKey}
+              adults={adults}
+              setAdults={setAdults}
+              childrenCount={childrenCount}
+              setChildrenCount={setChildrenCount}
+              infants={infants}
+              setInfants={setInfants}
             />
           ) : mode === "operator" ? (
             <OperatorDashboard resolved={resolved} onResolve={() => setResolved(true)} />
