@@ -2734,48 +2734,51 @@ function CascadeAnimation({
   }, [vendors]);
 
   // Start cascade when resolving
-  useEffect(() => {
-    if (isResolving && !cascadeStarted && !resolved) {
-      setCascadeStarted(true);
-      const initialSteps = getCascadeSteps();
-      setSteps(initialSteps);
-      setIsProcessing(true);
-      setProgress(0);
-      setCompletedCount(0);
+// Start cascade when resolving - FAST VERSION
+useEffect(() => {
+  if (isResolving && !cascadeStarted && !resolved) {
+    setCascadeStarted(true);
+    const initialSteps = getCascadeSteps();
+    setSteps(initialSteps);
+    setIsProcessing(true);
+    setProgress(0);
+    setCompletedCount(0);
 
-      const totalSteps = initialSteps.length;
-      let completed = 0;
+    const totalSteps = initialSteps.length;
+    let completed = 0;
 
-      initialSteps.forEach((step, index) => {
-        const delay = step.delay + 200;
+    initialSteps.forEach((step, index) => {
+      // FAST: 50ms initial delay + 100ms per step
+      const delay = step.delay + 50;
 
+      setTimeout(() => {
+        setSteps(prev => prev.map((s, i) => 
+          i === index ? { ...s, status: 'processing' } : s
+        ));
+
+        // FAST: 100ms processing
         setTimeout(() => {
+          const success = Math.random() > 0.05;
           setSteps(prev => prev.map((s, i) => 
-            i === index ? { ...s, status: 'processing' } : s
+            i === index ? { ...s, status: success ? 'completed' : 'failed' } : s
           ));
+          
+          completed++;
+          setCompletedCount(completed);
+          setProgress((completed / totalSteps) * 100);
 
-          // FASTER: 300ms processing
-          setTimeout(() => {
-            const success = Math.random() > 0.05;
-            setSteps(prev => prev.map((s, i) => 
-              i === index ? { ...s, status: success ? 'completed' : 'failed' } : s
-            ));
-            
-            completed++;
-            setCompletedCount(completed);
-            setProgress((completed / totalSteps) * 100);
-
-            if (completed === totalSteps) {
-              setTimeout(() => {
-                setIsProcessing(false);
-                if (onComplete) onComplete();
-              }, 200);
-            }
-          },150 + Math.random() * 100);
-        }, delay);
-      });
-    }
-  }, [isResolving, resolved, cascadeStarted, getCascadeSteps, onComplete]);
+          if (completed === totalSteps) {
+            // FAST: 50ms completion
+            setTimeout(() => {
+              setIsProcessing(false);
+              if (onComplete) onComplete();
+            }, 50);
+          }
+        }, 100 + Math.random() * 50);
+      }, delay);
+    });
+  }
+}, [isResolving, resolved, cascadeStarted, getCascadeSteps, onComplete]);
 
   useEffect(() => {
     if (resolved) {
