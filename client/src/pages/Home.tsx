@@ -1494,13 +1494,19 @@ function EnhancedCustomization({
   setUpgraded, 
   addedStop, 
   tripTotal, 
-  onNext 
+  onNext,
+  vendors,
+  selectedVendorIds,
+  onToggleVendor,
 }: { 
   upgraded: boolean; 
   setUpgraded: (value: boolean) => void; 
   addedStop: boolean; 
   tripTotal: number; 
   onNext: () => void;
+  vendors: VendorConfirmation[];
+  selectedVendorIds: string[];
+  onToggleVendor: (id: string) => void;
 }) {
   const [packageTier, setPackageTier] = useState<PackageTier>('standard');
   const [roomType, setRoomType] = useState<RoomType>('standard');
@@ -1579,6 +1585,10 @@ function EnhancedCustomization({
     'lunch_included': 400,
   };
 
+  // Calculate vendor costs
+  const selectedVendors = vendors.filter(v => selectedVendorIds.includes(v.id));
+  const vendorTotal = selectedVendors.reduce((sum, v) => sum + (v.price || 0), 0);
+
   const baseHotelPrice = upgraded ? 14200 : 13000;
   const tierCost = tierPrices[packageTier].base;
   const roomCost = roomPrices[roomType] + viewPrices[roomView] + (extraBed ? 500 : 0);
@@ -1589,7 +1599,7 @@ function EnhancedCustomization({
   const extraCosts = (travelInsurance ? 800 : 0) + (priorityCheckin ? 400 : 0) + (earlyCheckin ? 300 : 0) + (lateCheckout ? 300 : 0) + (airportTransfer ? 600 : 0);
   
   const hotelsPrice = baseHotelPrice + tierCost + roomCost + mealCost;
-  const grandTotal = hotelsPrice + transportCost + activityCost + addonCost + extraCosts + (addedStop ? 240 : 0);
+  const grandTotal = hotelsPrice + transportCost + activityCost + addonCost + extraCosts + (addedStop ? 240 : 0) + vendorTotal;
 
   const toggleAddon = (id: string) => {
     setSelectedAddons(prev => 
@@ -1612,6 +1622,18 @@ function EnhancedCustomization({
   ];
 
   const feasibilityScore = Math.round((feasibilityChecks.filter(c => c.status === 'available').length / feasibilityChecks.length) * 100);
+
+  // Vendor icons mapping
+  const getVendorIcon = (type: string) => {
+    switch(type) {
+      case 'hotel': return '🏨';
+      case 'driver': return '🚗';
+      case 'guide': return '🗺️';
+      case 'vendor': return '🛍️';
+      case 'activity': return '🍽️';
+      default: return '📋';
+    }
+  };
 
   return (
     <div className="space-y-8 animate-fade-up">
@@ -2046,6 +2068,77 @@ function EnhancedCustomization({
             </div>
           </Card>
 
+          {/* ============================================================
+              NEW: VENDORS SECTION
+              ============================================================ */}
+          <Card className="p-5 overflow-hidden border-teal/20 bg-teal/5">
+            <div className="flex items-center gap-2 mb-4">
+              <UsersRound size={16} className="text-teal" />
+              <div>
+                <p className="field-label">Vendors</p>
+                <p className="text-xs text-ink-muted">Select which vendors to include</p>
+              </div>
+              <Badge className="ml-auto bg-teal/10 text-teal text-[10px]">
+                {selectedVendors.length} of {vendors.length} selected
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {vendors.map((vendor) => {
+                const isSelected = selectedVendorIds.includes(vendor.id);
+                const Icon = vendor.icon;
+                const emoji = getVendorIcon(vendor.type);
+                
+                return (
+                  <button
+                    key={vendor.id}
+                    type="button"
+                    onClick={() => onToggleVendor(vendor.id)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-all duration-200",
+                      isSelected 
+                        ? "border-teal/40 bg-teal/5 shadow-[0_0_0_4px_rgba(13,148,136,0.1)]" 
+                        : "border-ink/10 hover:border-teal/20 bg-paper/40"
+                    )}
+                  >
+                    <div className={cn(
+                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-xl",
+                      isSelected ? "bg-teal/10" : "bg-ink/5"
+                    )}>
+                      {emoji}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-ink">{vendor.name}</p>
+                      <p className="text-[10px] text-ink-muted capitalize">{vendor.type}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {vendor.price && (
+                        <span className="text-xs font-semibold text-ink">₹{vendor.price}</span>
+                      )}
+                      <div className={cn(
+                        "flex h-6 w-10 items-center rounded-full border-2 transition-all duration-200",
+                        isSelected 
+                          ? "border-teal bg-teal" 
+                          : "border-ink/20 bg-ink/5"
+                      )}>
+                        <div className={cn(
+                          "h-4 w-4 rounded-full bg-white transition-all duration-200",
+                          isSelected ? "translate-x-3.5" : "translate-x-0.5"
+                        )} />
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {selectedVendors.length === 0 && (
+              <div className="mt-3 rounded-lg bg-amber/10 p-2 text-center text-xs text-amber">
+                ⚠️ No vendors selected. Please select at least one vendor.
+              </div>
+            )}
+          </Card>
+
           <Card className="p-5">
             <div className="flex items-center gap-2 mb-4">
               <Sparkles size={16} className="text-saffron" />
@@ -2169,6 +2262,11 @@ function EnhancedCustomization({
                     +{selectedAddons.length} add-ons
                   </span>
                 )}
+                {selectedVendors.length > 0 && (
+                  <span className="rounded-full bg-paper/10 px-2 py-0.5 text-[8px] font-bold text-teal-light">
+                    {selectedVendors.length} vendors
+                  </span>
+                )}
               </div>
             </div>
 
@@ -2185,6 +2283,12 @@ function EnhancedCustomization({
                 <span className="text-ink-muted">Activities</span>
                 <strong>₹{activityCost.toLocaleString("en-IN")}</strong>
               </div>
+              {selectedVendors.length > 0 && (
+                <div className="flex justify-between text-teal">
+                  <span className="text-ink-muted">Vendors</span>
+                  <strong>+₹{vendorTotal.toLocaleString("en-IN")}</strong>
+                </div>
+              )}
               {selectedAddons.length > 0 && (
                 <div className="flex justify-between text-teal">
                   <span className="text-ink-muted">Add-ons</span>
@@ -2222,7 +2326,7 @@ function EnhancedCustomization({
             </Button>
 
             <p className="mt-3 text-center text-[10px] text-ink-muted/60">
-              {feasibilityScore}% feasible · {selectedActivities.length} activities
+              {feasibilityScore}% feasible · {selectedActivities.length} activities · {selectedVendors.length} vendors
             </p>
           </Card>
         </div>
@@ -2705,7 +2809,7 @@ function DigitalPass({
 }
 
 // =============================================================================
-// RIPPLE ENGINE COMPONENT
+// RIPPLE ENGINE COMPONENT - FAST VERSION
 // =============================================================================
 
 type CascadeStep = {
@@ -2717,17 +2821,16 @@ type CascadeStep = {
   delay: number;
 };
 
-// LINE ~3200 - Replace CascadeAnimation component
 function CascadeAnimation({ 
   isResolving, 
   resolved,
   onComplete,
-  vendors,  // ADD THIS NEW PROP
+  vendors,
 }: { 
   isResolving: boolean;
   resolved: boolean;
   onComplete?: () => void;
-  vendors: VendorConfirmation[];  // ADD THIS NEW TYPE
+  vendors: VendorConfirmation[];
 }) {
   const [steps, setSteps] = useState<CascadeStep[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -2735,11 +2838,9 @@ function CascadeAnimation({
   const [completedCount, setCompletedCount] = useState(0);
   const [cascadeStarted, setCascadeStarted] = useState(false);
 
-  // Build cascade steps from actual vendors
   const getCascadeSteps = useCallback((): CascadeStep[] => {
     const activeVendors = vendors.filter(v => v.status === 'confirmed' || v.status === 'pending');
     
-    // If no vendors, use a minimal default
     if (activeVendors.length === 0) {
       return [
         { 
@@ -2759,56 +2860,52 @@ function CascadeAnimation({
       icon: vendor.icon,
       status: 'pending' as const,
       description: `Updating ${vendor.type} details`,
-      delay: index * 150, // FASTER: 300ms between steps
+      delay: index * 80, // FAST: 80ms between steps
     }));
   }, [vendors]);
 
-  // Start cascade when resolving
-// Start cascade when resolving - FAST VERSION
-useEffect(() => {
-  if (isResolving && !cascadeStarted && !resolved) {
-    setCascadeStarted(true);
-    const initialSteps = getCascadeSteps();
-    setSteps(initialSteps);
-    setIsProcessing(true);
-    setProgress(0);
-    setCompletedCount(0);
+  // FAST VERSION - resolves in ~1 second
+  useEffect(() => {
+    if (isResolving && !cascadeStarted && !resolved) {
+      setCascadeStarted(true);
+      const initialSteps = getCascadeSteps();
+      setSteps(initialSteps);
+      setIsProcessing(true);
+      setProgress(0);
+      setCompletedCount(0);
 
-    const totalSteps = initialSteps.length;
-    let completed = 0;
+      const totalSteps = initialSteps.length;
+      let completed = 0;
 
-    initialSteps.forEach((step, index) => {
-      // FAST: 50ms initial delay + 100ms per step
-      const delay = step.delay + 50;
+      initialSteps.forEach((step, index) => {
+        const delay = step.delay + 30;
 
-      setTimeout(() => {
-        setSteps(prev => prev.map((s, i) => 
-          i === index ? { ...s, status: 'processing' } : s
-        ));
-
-        // FAST: 100ms processing
         setTimeout(() => {
-          const success = Math.random() > 0.05;
           setSteps(prev => prev.map((s, i) => 
-            i === index ? { ...s, status: success ? 'completed' : 'failed' } : s
+            i === index ? { ...s, status: 'processing' } : s
           ));
-          
-          completed++;
-          setCompletedCount(completed);
-          setProgress((completed / totalSteps) * 100);
 
-          if (completed === totalSteps) {
-            // FAST: 50ms completion
-            setTimeout(() => {
-              setIsProcessing(false);
-              if (onComplete) onComplete();
-            }, 50);
-          }
-        }, 100 + Math.random() * 50);
-      }, delay);
-    });
-  }
-}, [isResolving, resolved, cascadeStarted, getCascadeSteps, onComplete]);
+          setTimeout(() => {
+            const success = Math.random() > 0.05;
+            setSteps(prev => prev.map((s, i) => 
+              i === index ? { ...s, status: success ? 'completed' : 'failed' } : s
+            ));
+            
+            completed++;
+            setCompletedCount(completed);
+            setProgress((completed / totalSteps) * 100);
+
+            if (completed === totalSteps) {
+              setTimeout(() => {
+                setIsProcessing(false);
+                if (onComplete) onComplete();
+              }, 30);
+            }
+          }, 80 + Math.random() * 40);
+        }, delay);
+      });
+    }
+  }, [isResolving, resolved, cascadeStarted, getCascadeSteps, onComplete]);
 
   useEffect(() => {
     if (resolved) {
@@ -2909,7 +3006,7 @@ useEffect(() => {
     </div>
   );
 }
-// LINE ~3350 - Replace RippleOptions component
+
 function RippleOptions({ 
   onResolve, 
   resolved, 
@@ -2961,9 +3058,10 @@ function RippleOptions({
 
   const handleCascadeComplete = () => {
     setCascadeComplete(true);
+    // FAST: 200ms delay before final resolution
     setTimeout(() => {
       onResolve(selectedKey);
-    }, 300);
+    }, 200);
   };
 
   const activeVendors = vendors.filter(v => v.status === 'confirmed' || v.status === 'pending');
@@ -3074,7 +3172,7 @@ function RippleOptions({
                 isResolving={isResolving}
                 resolved={cascadeComplete}
                 onComplete={handleCascadeComplete}
-                vendors={vendors}  // PASS VENDORS TO CASCADE
+                vendors={vendors}
               />
             </div>
           )}
@@ -3109,6 +3207,7 @@ function RippleOptions({
     </div>
   );
 }
+
 // =============================================================================
 // COMPLETE COMPONENT
 // =============================================================================
@@ -3727,19 +3826,32 @@ export default function Home() {
   const [isConfirmingAll, setIsConfirmingAll] = useState(false);
   const [isResolving, setIsResolving] = useState(false);
 
-  // Payment state
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const [paymentConfirmation, setPaymentConfirmation] = useState<PaymentConfirmation | null>(null);
-  const [showPaymentConfirmation, setShowPaymentConfirmation] = useState(false);
+// Payment state
+const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
+const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+const [paymentConfirmation, setPaymentConfirmation] = useState<PaymentConfirmation | null>(null);
+const [showPaymentConfirmation, setShowPaymentConfirmation] = useState(false);
 
-  const [vendors, setVendors] = useState<VendorConfirmation[]>([
-    { id: 'hotel', name: 'Kesar Bagh Haveli', type: 'hotel', icon: Hotel, status: 'pending', price: 14200 },
-    { id: 'driver', name: 'Driver · Rajesh K.', type: 'driver', icon: Car, status: 'pending', price: 18400 },
-    { id: 'guide', name: 'Amber Fort Guide', type: 'guide', icon: Compass, status: 'pending', price: 2800 },
-    { id: 'vendor', name: 'Sharma Ji Samosa Hub', type: 'vendor', icon: Store, status: 'pending', price: 120 },
-    { id: 'activity', name: 'Local Food Experience', type: 'activity', icon: UsersRound, status: 'pending', price: 3500 },
-  ]);
+// VENDORS MUST BE DECLARED FIRST
+const [vendors, setVendors] = useState<VendorConfirmation[]>([
+  { id: 'hotel', name: 'Kesar Bagh Haveli', type: 'hotel', icon: Hotel, status: 'pending', price: 14200 },
+  { id: 'driver', name: 'Driver · Rajesh K.', type: 'driver', icon: Car, status: 'pending', price: 18400 },
+  { id: 'guide', name: 'Amber Fort Guide', type: 'guide', icon: Compass, status: 'pending', price: 2800 },
+  { id: 'vendor', name: 'Sharma Ji Samosa Hub', type: 'vendor', icon: Store, status: 'pending', price: 120 },
+  { id: 'activity', name: 'Local Food Experience', type: 'activity', icon: UsersRound, status: 'pending', price: 3500 },
+]);
+
+// Vendor selection state for Customize tab - NOW vendors is defined
+const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>(
+  vendors.map(v => v.id)
+);
+  const toggleVendor = (id: string) => {
+    setSelectedVendorIds(prev => 
+      prev.includes(id) 
+        ? prev.filter(vid => vid !== id) 
+        : [...prev, id]
+    );
+  };
 
   useEffect(() => {
     const poiTotal = addedPOIs.reduce((sum, p) => sum + p.detourCost, 0);
@@ -3787,18 +3899,19 @@ export default function Home() {
   };
 
   const handleResolve = (key: string) => {
-  setIsResolving(true);
-  setResolutionKey(key);
-  
-  // Faster: 1500ms instead of 3000ms
-  setTimeout(() => {
-    setVendors(prev => prev.map(v => ({ ...v, status: 'confirmed' })));
-    setResolved(true);
-    setIsResolving(false);
-    setStep(6);
-    toast.success(`Ripple resolved with Option ${key}!`);
-  }, 1500);
-};
+    setIsResolving(true);
+    setResolutionKey(key);
+    
+    // FAST: 800ms final resolution
+    setTimeout(() => {
+      setVendors(prev => prev.map(v => ({ ...v, status: 'confirmed' })));
+      setResolved(true);
+      setIsResolving(false);
+      setStep(6);
+      toast.success(`Ripple resolved with Option ${key}!`);
+    }, 800);
+  };
+
   const handlePay = () => {
     if (!selectedPaymentMethod) return;
     
@@ -3861,6 +3974,7 @@ export default function Home() {
       { id: 'vendor', name: 'Sharma Ji Samosa Hub', type: 'vendor', icon: Store, status: 'pending', price: 120 },
       { id: 'activity', name: 'Local Food Experience', type: 'activity', icon: UsersRound, status: 'pending', price: 3500 },
     ]);
+    setSelectedVendorIds(vendors.map(v => v.id));
     setIsConfirmingAll(false);
     setIsResolving(false);
   };
@@ -4208,7 +4322,16 @@ export default function Home() {
           </div>
         );
       case 2:
-        return <EnhancedCustomization upgraded={upgraded} setUpgraded={setUpgraded} addedStop={addedStop} tripTotal={tripTotal} onNext={() => setStep(3)} />;
+        return <EnhancedCustomization 
+          upgraded={upgraded} 
+          setUpgraded={setUpgraded} 
+          addedStop={addedStop} 
+          tripTotal={tripTotal} 
+          onNext={() => setStep(3)}
+          vendors={vendors}
+          selectedVendorIds={selectedVendorIds}
+          onToggleVendor={toggleVendor}
+        />;
       case 3:
         return <Checkout 
           addedStop={addedStop} 
