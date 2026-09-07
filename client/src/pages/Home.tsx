@@ -19,7 +19,9 @@ import {
   Bike,
   Bot,
   BriefcaseBusiness,
+  Bus,
   CalendarDays,
+  Car,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -41,6 +43,7 @@ import {
   MessageCircle,
   MoreHorizontal,
   Navigation,
+  Package,
   Phone,
   Plane,
   Plus,
@@ -51,9 +54,10 @@ import {
   Sparkles,
   Star,
   Store,
+  Ticket,
   TicketCheck,
   Timer,
-  TrainFront,
+  Train,
   TrendingUp,
   UserRound,
   UsersRound,
@@ -86,6 +90,76 @@ type TravelerStep = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 const imageReference = "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=85";
 const mapImage = "https://images.unsplash.com/photo-1454496522488-7a8e488e8606?auto=format&fit=crop&w=1600&q=85";
 const stopImage = "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=1200&q=85";
+
+// Travel Service Options
+const travelServices = [
+  { id: "flights", label: "Flights", icon: Plane, color: "text-teal" },
+  { id: "hotels", label: "Hotels", icon: Hotel, color: "text-saffron" },
+  { id: "homestays", label: "Homestays & Villas", icon: HomeIcon, color: "text-moss" },
+  { id: "packages", label: "Holiday Packages", icon: Package, color: "text-coral" },
+  { id: "trains", label: "Trains", icon: Train, color: "text-amber" },
+  { id: "buses", label: "Buses", icon: Bus, color: "text-teal" },
+  { id: "cabs", label: "Cabs", icon: Car, color: "text-saffron" },
+  { id: "tours", label: "Tours & Attractions", icon: Ticket, color: "text-moss" },
+];
+
+// Suggested Destinations
+const suggestedDestinations = [
+  {
+    id: "goa",
+    name: "Goa",
+    location: "India",
+    image: "https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=800&q=80",
+    description: "Beaches, nightlife & Portuguese heritage",
+    rating: "4.8",
+    price: "From ₹8,999",
+  },
+  {
+    id: "jaipur",
+    name: "Jaipur",
+    location: "Rajasthan, India",
+    image: "https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&w=800&q=80",
+    description: "The Pink City · Palaces & Forts",
+    rating: "4.7",
+    price: "From ₹6,499",
+  },
+  {
+    id: "kerala",
+    name: "Kerala",
+    location: "India",
+    image: "https://images.unsplash.com/photo-1593693411515-c20261bcad6e?auto=format&fit=crop&w=800&q=80",
+    description: "Backwaters, houseboats & tropical greenery",
+    rating: "4.9",
+    price: "From ₹12,999",
+  },
+  {
+    id: "manali",
+    name: "Manali",
+    location: "Himachal Pradesh, India",
+    image: "https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?auto=format&fit=crop&w=800&q=80",
+    description: "Himalayan mountains & adventure sports",
+    rating: "4.6",
+    price: "From ₹7,499",
+  },
+  {
+    id: "udaipur",
+    name: "Udaipur",
+    location: "Rajasthan, India",
+    image: "https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=800&q=80",
+    description: "Lakes, palaces & romantic ambiance",
+    rating: "4.8",
+    price: "From ₹8,999",
+  },
+  {
+    id: "varanasi",
+    name: "Varanasi",
+    location: "Uttar Pradesh, India",
+    image: "https://images.unsplash.com/photo-1561361058-c24cecae35ca?auto=format&fit=crop&w=800&q=80",
+    description: "Spiritual ghats & ancient culture",
+    rating: "4.5",
+    price: "From ₹5,499",
+  },
+];
 
 type RoutePlan = {
   destination: string;
@@ -411,6 +485,112 @@ function TravelerCounter({
   );
 }
 
+// ============== NEW COMPONENTS ==============
+
+// Travel Services Section
+function TravelServicesSection({ onServiceClick }: { onServiceClick?: (serviceId: string) => void }) {
+  return (
+    <div className="mb-10">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <MiniLabel tone="teal">Explore</MiniLabel>
+          <h3 className="mt-1 font-display text-xl font-semibold tracking-tighter text-ink">Plan your journey</h3>
+        </div>
+        <span className="text-xs text-ink-muted">8 services</span>
+      </div>
+      
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3">
+        {travelServices.map((service) => {
+          const Icon = service.icon;
+          return (
+            <button
+              key={service.id}
+              type="button"
+              onClick={() => {
+                onServiceClick?.(service.id);
+                toast.info(`${service.label} service opened`);
+              }}
+              className="group flex flex-col items-center gap-2 rounded-2xl border border-ink/8 bg-paper/60 p-4 transition-all duration-200 hover:border-teal/30 hover:bg-paper hover:shadow-[0_8px_24px_rgba(13,148,136,0.08)] hover:-translate-y-0.5"
+            >
+              <div className={cn(
+                "flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-200",
+                "bg-ink/5 group-hover:bg-teal/10 group-hover:scale-105",
+                service.color
+              )}>
+                <Icon size={20} strokeWidth={1.8} />
+              </div>
+              <span className="text-[11px] font-semibold text-ink/80 text-center leading-tight group-hover:text-ink">
+                {service.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Suggested Destinations Section
+function SuggestedDestinationsSection({ onDestinationClick }: { onDestinationClick?: (destination: string) => void }) {
+  return (
+    <div className="mb-10">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <MiniLabel tone="saffron">Trending Destinations</MiniLabel>
+          <h3 className="mt-1 font-display text-xl font-semibold tracking-tighter text-ink">Popular places to visit</h3>
+        </div>
+        <button 
+          type="button" 
+          onClick={() => toast.info("View all destinations")}
+          className="text-xs font-bold text-teal hover:underline flex items-center gap-1"
+        >
+          See all <ArrowRight size={13} />
+        </button>
+      </div>
+      
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        {suggestedDestinations.map((destination) => (
+          <button
+            key={destination.id}
+            type="button"
+            onClick={() => {
+              onDestinationClick?.(destination.name);
+              toast.info(`Exploring ${destination.name}`);
+            }}
+            className="group relative overflow-hidden rounded-2xl aspect-[4/3] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_12px_32px_rgba(0,0,0,0.15)] focus-visible:ring-2 focus-visible:ring-teal"
+          >
+            <img 
+              src={destination.image} 
+              alt={destination.name}
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/30 to-transparent" />
+            
+            {/* Rating and price badge */}
+            <div className="absolute top-3 right-3 flex items-center gap-1.5 rounded-full bg-ink/70 backdrop-blur-sm px-2.5 py-1">
+              <Star size={10} className="fill-saffron text-saffron" />
+              <span className="text-[10px] font-bold text-white">{destination.rating}</span>
+            </div>
+            
+            {/* Content overlay */}
+            <div className="absolute bottom-0 left-0 right-0 p-3 text-left">
+              <h4 className="text-sm font-bold text-white leading-tight">{destination.name}</h4>
+              <p className="mt-0.5 text-[10px] text-white/75 leading-tight">{destination.location}</p>
+              <p className="mt-0.5 text-[9px] text-white/60 leading-tight line-clamp-1">{destination.description}</p>
+              <div className="mt-1.5 flex items-center justify-between">
+                <span className="text-[10px] font-semibold text-teal-light">{destination.price}</span>
+                <span className="text-[9px] text-white/40">→</span>
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============== END NEW COMPONENTS ==============
+
 function IntakeCanvas({
   destination,
   setDestination,
@@ -434,6 +614,7 @@ function IntakeCanvas({
   infants,
   setInfants,
   onBuild,
+  onDestinationClick,
 }: {
   destination: string;
   setDestination: (value: string) => void;
@@ -457,6 +638,7 @@ function IntakeCanvas({
   infants: number;
   setInfants: (value: number) => void;
   onBuild: () => void;
+  onDestinationClick?: (destination: string) => void;
 }) {
   const toggleStyle = (label: string) => setStyles(styles.includes(label) ? styles.filter((item) => item !== label) : [...styles, label]);
   const nights = Math.max(durationDays - 1, 0);
@@ -487,10 +669,15 @@ function IntakeCanvas({
   const basePricePerAdult = 47800;
   const pricePerChild = 25000;
   const pricePerInfant = 10000;
-  const basePrice = basePricePerAdult * adults + pricePerChild * childrenCount + pricePerInfant * infants;
 
   return (
     <div className="space-y-8 animate-fade-up">
+      {/* Travel Services Section */}
+      <TravelServicesSection onServiceClick={(id) => toast.info(`${id} service opened`)} />
+      
+      {/* Suggested Destinations Section */}
+      <SuggestedDestinationsSection onDestinationClick={onDestinationClick} />
+      
       <div className="section-heading max-w-3xl"><MiniLabel tone="teal">01 / Intake Canvas</MiniLabel><h1>Build a trip that can <em>bend</em> without breaking.</h1><p>Tell Orbit how you want to move. The route, stays, local stops, and live operations will shape around you.</p></div>
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <Card className="form-card">
@@ -587,7 +774,6 @@ function IntakeCanvas({
               <Slider 
                 value={budget} 
                 onValueChange={(value) => {
-                  // If value is 0, set to minimum (1000)
                   const newValue = value[0] === 0 ? 1000 : value[0];
                   setBudget([newValue]);
                 }} 
@@ -1326,6 +1512,7 @@ function TravelerView({
           infants={infants}
           setInfants={setInfants}
           onBuild={() => setStep(1)}
+          onDestinationClick={(dest) => setDestination(dest)}
         />
       );
     case 1:
