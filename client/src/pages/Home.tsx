@@ -1,4 +1,4 @@
-// client/src/pages/Home.tsx - COMPLETE UPDATED FILE
+// client/src/pages/Home.tsx - COMPLETE FIXED FILE
 
 /*
  * Atlas Editorial design reminder for this page:
@@ -601,110 +601,529 @@ function PaymentConfirmationScreen({
   onComplete: () => void;
 }) {
   const [showReceipt, setShowReceipt] = useState(false);
-  
-  return (
-    <div className="space-y-6 animate-fade-up">
-      <div className="flex flex-col items-center text-center">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-moss/10 text-moss">
-          <CheckCircle2 size={40} />
-        </div>
-        <h2 className="mt-4 font-display text-2xl font-semibold tracking-tighter">Payment Successful!</h2>
-        <p className="mt-1 text-sm text-ink-muted">
-          Your trip is confirmed. Transaction ID: {confirmation.transactionId}
-        </p>
+  const [receiptData, setReceiptData] = useState<{
+    bookingRef: string;
+    travelerName: string;
+    destination: string;
+    dates: string;
+    nights: number;
+    travelers: number;
+    paymentMethod: string;
+    amount: number;
+    timestamp: string;
+    transactionId: string;
+    status: string;
+    itinerary: Array<{ day: string; activities: string[] }>;
+  }>({
+    bookingRef: `TRP-${String(8000 + Math.floor(Math.random() * 1000))}`,
+    travelerName: "Aanya Sharma",
+    destination: "Jaipur, Rajasthan",
+    dates: "12-14 Feb 2026",
+    nights: 2,
+    travelers: 2,
+    paymentMethod: confirmation.method,
+    amount: confirmation.amount,
+    timestamp: confirmation.timestamp,
+    transactionId: confirmation.transactionId,
+    status: confirmation.status,
+    itinerary: [
+      { day: "Day 1 · 12 Feb", activities: ["Home pickup · 07:30", "Drive to Jaipur", "Hotel check-in · 17:30"] },
+      { day: "Day 2 · 13 Feb", activities: ["Amber Fort tour", "Local food experience", "Evening at leisure"] },
+      { day: "Day 3 · 14 Feb", activities: ["Morning yoga", "Departure"] },
+    ],
+  });
+
+  const handleDownloadPDF = () => {
+    // Create a beautiful HTML receipt
+    const receiptHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Orbit Trip Confirmation - ${receiptData.bookingRef}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Georgia', 'Times New Roman', serif;
+      background: #f5f1e8;
+      padding: 40px 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .receipt {
+      max-width: 700px;
+      width: 100%;
+      background: white;
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(23,34,35,0.12);
+      overflow: hidden;
+    }
+    .receipt-header {
+      background: #172223;
+      padding: 32px 40px 28px;
+      color: white;
+      position: relative;
+    }
+    .receipt-header::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #0D9488, #D97706, #0D9488);
+      background-size: 200% 100%;
+      animation: shimmer 3s ease-in-out infinite;
+    }
+    @keyframes shimmer {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    .receipt-header .top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .receipt-header .logo {
+      font-family: 'Georgia', serif;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -1px;
+    }
+    .receipt-header .logo span {
+      color: #0D9488;
+    }
+    .receipt-header .badge {
+      background: rgba(13,148,136,0.2);
+      border: 1px solid rgba(13,148,136,0.3);
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      color: #0D9488;
+    }
+    .receipt-header h1 {
+      font-size: 26px;
+      font-weight: 700;
+      margin-top: 20px;
+      letter-spacing: -0.5px;
+      font-family: 'Georgia', serif;
+    }
+    .receipt-header .sub {
+      color: rgba(255,255,255,0.6);
+      font-size: 14px;
+      margin-top: 6px;
+      font-family: 'Arial', sans-serif;
+    }
+    .receipt-body {
+      padding: 32px 40px 40px;
+    }
+    .receipt-body .confirmation-banner {
+      background: #f0f7f4;
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+      border-left: 4px solid #0D9488;
+    }
+    .receipt-body .confirmation-banner .icon {
+      font-size: 24px;
+    }
+    .receipt-body .confirmation-banner .text {
+      font-size: 14px;
+      color: #172223;
+    }
+    .receipt-body .confirmation-banner .text strong {
+      color: #0D9488;
+    }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px 32px;
+      margin-bottom: 28px;
+    }
+    .detail-grid .item {
+      border-bottom: 1px solid #f0ede8;
+      padding-bottom: 10px;
+    }
+    .detail-grid .item .label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #999;
+      font-weight: 600;
+      font-family: 'Arial', sans-serif;
+    }
+    .detail-grid .item .value {
+      font-size: 15px;
+      font-weight: 600;
+      color: #172223;
+      margin-top: 3px;
+    }
+    .detail-grid .item .value .highlight {
+      color: #0D9488;
+    }
+    .divider {
+      border: none;
+      border-top: 2px dashed #e8e3dc;
+      margin: 20px 0;
+    }
+    .itinerary-section h3 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #172223;
+      margin-bottom: 12px;
+      font-family: 'Georgia', serif;
+      letter-spacing: -0.3px;
+    }
+    .itinerary-section .day {
+      background: #faf8f5;
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 8px;
+      border-left: 3px solid #0D9488;
+    }
+    .itinerary-section .day .day-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #0D9488;
+      font-family: 'Arial', sans-serif;
+      letter-spacing: 0.3px;
+    }
+    .itinerary-section .day .activities {
+      margin-top: 4px;
+      font-size: 13px;
+      color: #444;
+      line-height: 1.6;
+    }
+    .itinerary-section .day .activities span {
+      display: inline-block;
+      margin-right: 12px;
+    }
+    .itinerary-section .day .activities span::before {
+      content: '• ';
+      color: #0D9488;
+    }
+    .totals {
+      background: #faf8f5;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-top: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .totals .label {
+      font-size: 14px;
+      color: #666;
+    }
+    .totals .amount {
+      font-size: 26px;
+      font-weight: 700;
+      color: #172223;
+      font-family: 'Georgia', serif;
+    }
+    .receipt-footer {
+      border-top: 1px solid #f0ede8;
+      padding-top: 20px;
+      margin-top: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .receipt-footer .qr-placeholder {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      color: #666;
+    }
+    .receipt-footer .qr-placeholder .box {
+      width: 48px;
+      height: 48px;
+      background: #172223;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+    }
+    .receipt-footer .support {
+      font-size: 12px;
+      color: #999;
+      text-align: right;
+      line-height: 1.6;
+    }
+    .receipt-footer .support strong {
+      color: #172223;
+    }
+    @media print {
+      body { background: white; padding: 20px; }
+      .receipt { box-shadow: none; border: 1px solid #eee; }
+      .receipt-header::after { animation: none; }
+    }
+    @media (max-width: 600px) {
+      .receipt-header { padding: 24px 20px; }
+      .receipt-body { padding: 24px 20px; }
+      .detail-grid { grid-template-columns: 1fr; gap: 12px; }
+      .receipt-header .top-row { flex-direction: column; gap: 12px; }
+      .receipt-header h1 { font-size: 20px; }
+      .totals .amount { font-size: 22px; }
+      .receipt-footer { flex-direction: column; align-items: flex-start; }
+      .receipt-footer .support { text-align: left; }
+    }
+  </style>
+</head>
+<body>
+  <div class="receipt">
+    <div class="receipt-header">
+      <div class="top-row">
+        <div class="logo">Orbit <span>●</span></div>
+        <div class="badge">✓ CONFIRMED</div>
       </div>
-      
-      <Card className="p-5 border-moss/20 bg-moss/5">
-        <div className="space-y-3">
-          <div className="flex justify-between text-sm">
-            <span className="text-ink-muted">Amount Paid</span>
-            <span className="font-bold text-ink">₹{confirmation.amount.toLocaleString("en-IN")}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-ink-muted">Payment Method</span>
-            <span className="font-semibold text-ink capitalize">{confirmation.method}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-ink-muted">Transaction ID</span>
-            <span className="font-mono text-xs text-ink">{confirmation.transactionId}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-ink-muted">Date & Time</span>
-            <span className="text-ink">{format(new Date(confirmation.timestamp), "dd MMM yyyy, hh:mm a")}</span>
-          </div>
+      <h1>Your journey is ready.</h1>
+      <div class="sub">Booking #${receiptData.bookingRef} · Confirmed on ${format(new Date(receiptData.timestamp), "dd MMM yyyy, hh:mm a")}</div>
+    </div>
+    
+    <div class="receipt-body">
+      <div class="confirmation-banner">
+        <span class="icon">✅</span>
+        <div class="text">
+          <strong>Payment Successful!</strong> Your trip to ${receiptData.destination} is confirmed.
+          <br><span style="font-size:12px;color:#666;">Transaction ID: ${receiptData.transactionId}</span>
         </div>
-      </Card>
-      
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <Button
-          onClick={() => setShowReceipt(!showReceipt)}
-          variant="outline"
-          className="flex-1 h-11 rounded-xl border-ink/12 font-bold text-ink hover:bg-paper-dark"
-        >
-          <FileText size={16} className="mr-2" />
-          {showReceipt ? "Hide Receipt" : "View Receipt"}
-        </Button>
-        <Button
-  onClick={() => {
-    // Create receipt data
-    const receiptData = `
-ORBIT TRIP CONFIRMATION
-========================
-Booking: ${confirmation.transactionId}
-Date: ${format(new Date(confirmation.timestamp), "dd MMM yyyy, hh:mm a")}
-Amount: ₹${confirmation.amount.toLocaleString("en-IN")}
-Payment: ${confirmation.method}
-Status: ${confirmation.status}
+      </div>
 
-Trip Details:
-- Destination: Jaipur, Rajasthan
-- Dates: 12-14 Feb 2026
-- Traveler: Aanya Sharma
+      <div class="detail-grid">
+        <div class="item">
+          <div class="label">Traveler</div>
+          <div class="value">${receiptData.travelerName}</div>
+        </div>
+        <div class="item">
+          <div class="label">Destination</div>
+          <div class="value">${receiptData.destination}</div>
+        </div>
+        <div class="item">
+          <div class="label">Dates</div>
+          <div class="value">${receiptData.dates} · ${receiptData.nights} nights</div>
+        </div>
+        <div class="item">
+          <div class="label">Travelers</div>
+          <div class="value">${receiptData.travelers} adults</div>
+        </div>
+        <div class="item">
+          <div class="label">Payment Method</div>
+          <div class="value">${receiptData.paymentMethod.toUpperCase()}</div>
+        </div>
+        <div class="item">
+          <div class="label">Status</div>
+          <div class="value"><span class="highlight">✓ ${receiptData.status.toUpperCase()}</span></div>
+        </div>
+      </div>
 
-Thank you for choosing Orbit! 🌏
-    `.trim();
+      <hr class="divider">
 
-    // Create and download file
-    const blob = new Blob([receiptData], { type: 'text/plain' });
+      <div class="itinerary-section">
+        <h3>Your Itinerary</h3>
+        ${receiptData.itinerary.map(day => `
+          <div class="day">
+            <div class="day-label">${day.day}</div>
+            <div class="activities">
+              ${day.activities.map(a => `<span>${a}</span>`).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="totals">
+        <span class="label">Total Paid</span>
+        <span class="amount">₹${receiptData.amount.toLocaleString("en-IN")}</span>
+      </div>
+
+      <div class="receipt-footer">
+        <div class="qr-placeholder">
+          <div class="box">◆</div>
+          <span>Scan for trip details</span>
+        </div>
+        <div class="support">
+          <strong>24/7 Support</strong><br>
+          +91 98765 43210<br>
+          <span style="font-size:11px;color:#aaa;">Emergency · Route · Vendors</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+    `;
+
+    // Create blob and download
+    const blob = new Blob([receiptHTML], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `receipt-${confirmation.transactionId}.txt`;
+    link.download = `orbit-confirmation-${receiptData.bookingRef}.html`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     
     toast.success("Receipt downloaded!");
-  }}
-  className="flex-1 h-11 rounded-xl bg-teal font-bold text-white hover:bg-teal-dark"
->
-  <Download size={16} className="mr-2" />
-  Download Confirmation
-</Button>
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-up">
+      {/* Success Header */}
+      <div className="flex flex-col items-center text-center">
+        <div className="relative">
+          <div className="absolute inset-0 animate-ping rounded-full bg-moss/20" style={{ animationDuration: '2s' }} />
+          <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-moss/10 text-moss">
+            <CheckCircle2 size={40} strokeWidth={1.5} />
+          </div>
+        </div>
+        <h2 className="mt-4 font-display text-3xl font-semibold tracking-tighter">Payment Successful!</h2>
+        <p className="mt-1.5 text-sm text-ink-muted">
+          Your trip is confirmed. Booking #{receiptData.bookingRef}
+        </p>
       </div>
-      
-      {showReceipt && (
-        <Card className="p-5 border-ink/8 animate-fade-up">
-          <div className="space-y-2 text-xs">
-            <div className="flex justify-between">
-              <span className="text-ink-muted">Booking Reference</span>
-              <span className="font-mono font-bold">{confirmation.transactionId.slice(0, 12)}</span>
+
+      {/* Confirmation Card */}
+      <Card className="overflow-hidden border-moss/20 shadow-[0_8px_32px_rgba(13,148,136,0.08)]">
+        {/* Green top bar */}
+        <div className="h-1.5 bg-linear-to-r from-moss via-teal to-moss bg-size-[200%_100%] animate-[shimmer_3s_ease-in-out_infinite]" />
+        
+        <div className="p-6 sm:p-8">
+          {/* Trip Summary */}
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <Logo variant="tiny" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-ink/40">Orbit</span>
+              </div>
+              <h3 className="mt-3 font-display text-xl font-semibold tracking-tighter">
+                {receiptData.destination}
+              </h3>
+              <p className="text-xs text-ink-muted">{receiptData.dates} · {receiptData.nights} nights</p>
             </div>
-            <div className="flex justify-between">
-              <span className="text-ink-muted">Status</span>
-              <span className="text-moss font-bold">✓ Confirmed</span>
+            <Badge className="bg-moss/10 text-moss hover:bg-moss/20 border-moss/20">
+              <Check size={12} className="mr-1" /> Confirmed
+            </Badge>
+          </div>
+
+          {/* Divider */}
+          <div className="my-5 border-t border-dashed border-ink/10" />
+
+          {/* Details Grid */}
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">Traveler</p>
+              <p className="mt-1 text-sm font-semibold text-ink">{receiptData.travelerName}</p>
             </div>
-            <div className="border-t border-ink/8 pt-2">
-              <p className="text-center text-ink-muted/60">Thank you for choosing Orbit. Safe travels! 🌏</p>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">Booking</p>
+              <p className="mt-1 font-mono text-sm font-semibold text-ink">{receiptData.bookingRef}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">Status</p>
+              <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-moss">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-moss animate-pulse" />
+                Confirmed
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">Payment</p>
+              <p className="mt-1 text-sm font-semibold text-ink capitalize">{receiptData.paymentMethod}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">Travelers</p>
+              <p className="mt-1 text-sm font-semibold text-ink">{receiptData.travelers} adults</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">Transaction</p>
+              <p className="mt-1 font-mono text-[11px] font-semibold text-ink truncate">{receiptData.transactionId.slice(0, 12)}</p>
             </div>
           </div>
-        </Card>
-      )}
+
+          {/* Itinerary Preview */}
+          <div className="mt-5 rounded-xl bg-paper/60 p-4">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">Quick Itinerary</p>
+            <div className="mt-2 space-y-1.5">
+              {receiptData.itinerary.map((day, idx) => (
+                <div key={idx} className="flex items-start gap-2 text-xs">
+                  <span className="font-bold text-teal min-w-20">{day.day}</span>
+                  <span className="text-ink-muted">{day.activities.join(' · ')}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Total */}
+          <div className="mt-5 flex items-center justify-between border-t border-ink/8 pt-4">
+            <span className="text-sm text-ink-muted">Total paid</span>
+            <span className="font-display text-2xl font-bold tracking-tighter text-ink">
+              ₹{receiptData.amount.toLocaleString("en-IN")}
+            </span>
+          </div>
+        </div>
+      </Card>
+
+      {/* Actions */}
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Button
+          onClick={handleDownloadPDF}
+          className="flex-1 h-11 rounded-xl bg-teal font-bold text-white hover:bg-teal-dark shadow-[0_4px_16px_rgba(13,148,136,0.25)]"
+        >
+          <Download size={16} className="mr-2" />
+          Download Receipt
+        </Button>
+        <Button
+          onClick={() => {
+            navigator.clipboard?.writeText(`Booking #${receiptData.bookingRef}\nDestination: ${receiptData.destination}\nDates: ${receiptData.dates}\nTotal: ₹${receiptData.amount.toLocaleString("en-IN")}`);
+            toast.success("Booking details copied!");
+          }}
+          variant="outline"
+          className="flex-1 h-11 rounded-xl border-ink/12 font-bold text-ink hover:bg-paper-dark"
+        >
+          <Copy size={16} className="mr-2" />
+          Copy Details
+        </Button>
+        <Button
+          onClick={onComplete}
+          variant="ghost"
+          className="h-11 rounded-xl font-bold text-teal hover:bg-teal/5"
+        >
+          Continue <ArrowRight size={16} className="ml-2" />
+        </Button>
+      </div>
+
+      {/* Trust Badge */}
+      <div className="flex items-center justify-center gap-4 text-[10px] text-ink-muted/60">
+        <span className="flex items-center gap-1">
+          <LockKeyhole size={12} />
+          Secure payment
+        </span>
+        <span className="w-px h-3 bg-ink/10" />
+        <span className="flex items-center gap-1">
+          <ShieldCheck size={12} />
+          Privacy protected
+        </span>
+        <span className="w-px h-3 bg-ink/10" />
+        <span className="flex items-center gap-1">
+          <Clock size={12} />
+          Instant confirmation
+        </span>
+      </div>
     </div>
   );
 }
-
 // =============================================================================
 // CHECKOUT COMPONENT WITH PAYMENT INTEGRATION
 // =============================================================================
@@ -714,6 +1133,7 @@ function Checkout({
   upgraded, 
   onNext,
   vendors,
+  selectedVendorIds,
   onConfirmVendor,
   onConfirmAll,
   isConfirmingAll,
@@ -730,6 +1150,7 @@ function Checkout({
   upgraded: boolean; 
   onNext: () => void;
   vendors: VendorConfirmation[];
+  selectedVendorIds: string[];
   onConfirmVendor: (id: string) => void;
   onConfirmAll: () => void;
   isConfirmingAll: boolean;
@@ -750,8 +1171,10 @@ function Checkout({
   const localStopPrice = addedStop ? 240 : 0;
   const grandTotal = hotelsPrice + transportPrice + activitiesPrice + servicePrice + localStopPrice;
   
-  const allVendorsConfirmed = vendors.every(v => v.status === 'confirmed');
-  const pendingVendors = vendors.filter(v => v.status === 'pending');
+  // Only show selected vendors
+  const selectedVendors = vendors.filter(v => selectedVendorIds.includes(v.id));
+  const allVendorsConfirmed = selectedVendors.every(v => v.status === 'confirmed');
+  const pendingVendors = selectedVendors.filter(v => v.status === 'pending');
   
   const [showRemoveConfirm, setShowRemoveConfirm] = useState<string | null>(null);
   
@@ -816,11 +1239,15 @@ function Checkout({
               <div>
                 <p className="eyebrow text-ink-muted">Vendor Confirmations</p>
                 <p className="mt-1 text-xs text-ink-muted">
-                  {allVendorsConfirmed ? "All vendors confirmed ✓" : `${pendingVendors.length} vendor${pendingVendors.length > 1 ? 's' : ''} pending`}
+                  {selectedVendors.length === 0 
+                    ? "No vendors selected" 
+                    : allVendorsConfirmed 
+                      ? "All vendors confirmed ✓" 
+                      : `${pendingVendors.length} vendor${pendingVendors.length > 1 ? 's' : ''} pending`}
                 </p>
               </div>
               <div className="flex gap-2">
-                {!allVendorsConfirmed && pendingVendors.length > 0 && (
+                {selectedVendors.length > 0 && !allVendorsConfirmed && pendingVendors.length > 0 && (
                   <Button
                     onClick={onConfirmAll}
                     disabled={isConfirmingAll}
@@ -838,98 +1265,105 @@ function Checkout({
             </div>
             
             <div className="mt-5 space-y-2">
-              {vendors.map((vendor) => {
-                const Icon = vendor.icon;
-                const isConfirmed = vendor.status === 'confirmed';
-                const isPending = vendor.status === 'pending';
-                const isConfirming = vendor.status === 'confirming';
-                const isDeclined = vendor.status === 'declined';
-                const showRemove = showRemoveConfirm === vendor.id;
-                
-                return (
-                  <div 
-                    key={vendor.id} 
-                    className={cn(
-                      "flex items-center gap-3 rounded-xl border px-4 py-3 transition-all duration-300",
-                      isConfirmed ? "border-moss/20 bg-moss/5" : "border-ink/8 bg-paper-dark/50",
-                      isConfirming && "border-amber/20 bg-amber/5"
-                    )}
-                  >
-                    <div className={cn(
-                      "flex h-8 w-8 items-center justify-center rounded-lg",
-                      isConfirmed ? "bg-moss/10 text-moss" : "bg-ink/5 text-ink-muted"
-                    )}>
-                      <Icon size={15} />
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-ink">{vendor.name}</p>
-                      <p className="text-[10px] text-ink-muted capitalize">{vendor.type}</p>
-                    </div>
-                    
-                    <div className="flex items-center gap-3">
-                      {vendor.price && (
-                        <span className="text-xs font-semibold text-ink">₹{vendor.price}</span>
+              {selectedVendors.length === 0 ? (
+                <div className="text-center py-8 text-ink-muted">
+                  <p className="text-sm">No vendors selected</p>
+                  <p className="text-xs mt-1">Go back to Customize to select vendors</p>
+                </div>
+              ) : (
+                selectedVendors.map((vendor) => {
+                  const Icon = vendor.icon;
+                  const isConfirmed = vendor.status === 'confirmed';
+                  const isPending = vendor.status === 'pending';
+                  const isConfirming = vendor.status === 'confirming';
+                  const isDeclined = vendor.status === 'declined';
+                  const showRemove = showRemoveConfirm === vendor.id;
+                  
+                  return (
+                    <div 
+                      key={vendor.id} 
+                      className={cn(
+                        "flex items-center gap-3 rounded-xl border px-4 py-3 transition-all duration-300",
+                        isConfirmed ? "border-moss/20 bg-moss/5" : "border-ink/8 bg-paper-dark/50",
+                        isConfirming && "border-amber/20 bg-amber/5"
                       )}
+                    >
+                      <div className={cn(
+                        "flex h-8 w-8 items-center justify-center rounded-lg",
+                        isConfirmed ? "bg-moss/10 text-moss" : "bg-ink/5 text-ink-muted"
+                      )}>
+                        <Icon size={15} />
+                      </div>
                       
-                      {isConfirmed ? (
-                        <span className="flex items-center gap-1 text-xs font-bold text-moss">
-                          <CheckCircle2 size={14} /> Confirmed
-                        </span>
-                      ) : isConfirming ? (
-                        <span className="flex items-center gap-1 text-xs font-bold text-amber">
-                          <Loader2 size={14} className="animate-spin" /> Confirming...
-                        </span>
-                      ) : isDeclined ? (
-                        <span className="text-xs font-bold text-coral">Declined</span>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Button
-                            onClick={() => onConfirmVendor(vendor.id)}
-                            size="sm"
-                            variant="outline"
-                            className="h-7 rounded-lg border-teal/30 px-3 text-xs font-bold text-teal hover:bg-teal/5"
-                          >
-                            Confirm
-                          </Button>
-                          {showRemove ? (
-                            <div className="flex items-center gap-1">
-                              <Button
-                                onClick={() => handleRemoveVendor(vendor.id)}
-                                size="sm"
-                                variant="destructive"
-                                className="h-7 rounded-lg px-2 text-xs font-bold"
-                              >
-                                Remove
-                              </Button>
-                              <Button
-                                onClick={() => setShowRemoveConfirm(null)}
-                                size="sm"
-                                variant="outline"
-                                className="h-7 rounded-lg px-2 text-xs"
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setShowRemoveConfirm(vendor.id)}
-                              className="text-ink-muted/40 hover:text-coral transition-colors"
-                              aria-label={`Remove ${vendor.name}`}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-ink">{vendor.name}</p>
+                        <p className="text-[10px] text-ink-muted capitalize">{vendor.type}</p>
+                      </div>
+                      
+                      <div className="flex items-center gap-3">
+                        {vendor.price && (
+                          <span className="text-xs font-semibold text-ink">₹{vendor.price}</span>
+                        )}
+                        
+                        {isConfirmed ? (
+                          <span className="flex items-center gap-1 text-xs font-bold text-moss">
+                            <CheckCircle2 size={14} /> Confirmed
+                          </span>
+                        ) : isConfirming ? (
+                          <span className="flex items-center gap-1 text-xs font-bold text-amber">
+                            <Loader2 size={14} className="animate-spin" /> Confirming...
+                          </span>
+                        ) : isDeclined ? (
+                          <span className="text-xs font-bold text-coral">Declined</span>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              onClick={() => onConfirmVendor(vendor.id)}
+                              size="sm"
+                              variant="outline"
+                              className="h-7 rounded-lg border-teal/30 px-3 text-xs font-bold text-teal hover:bg-teal/5"
                             >
-                              <X size={14} />
-                            </button>
-                          )}
-                        </div>
-                      )}
+                              Confirm
+                            </Button>
+                            {showRemove ? (
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  onClick={() => handleRemoveVendor(vendor.id)}
+                                  size="sm"
+                                  variant="destructive"
+                                  className="h-7 rounded-lg px-2 text-xs font-bold"
+                                >
+                                  Remove
+                                </Button>
+                                <Button
+                                  onClick={() => setShowRemoveConfirm(null)}
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 rounded-lg px-2 text-xs"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setShowRemoveConfirm(vendor.id)}
+                                className="text-ink-muted/40 hover:text-coral transition-colors"
+                                aria-label={`Remove ${vendor.name}`}
+                              >
+                                <X size={14} />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
             
-            {allVendorsConfirmed && (
+            {selectedVendors.length > 0 && allVendorsConfirmed && (
               <div className="mt-4 rounded-xl bg-moss/10 p-3 text-center text-xs font-bold text-moss animate-fade-up">
                 <CheckCircle2 size={16} className="inline mr-2" />
                 All vendors confirmed! Your trip is ready for payment.
@@ -943,9 +1377,9 @@ function Checkout({
                 <p className="eyebrow text-ink-muted">Timing Compatibility</p>
               </div>
               <Badge className={cn(
-                allVendorsConfirmed ? "bg-moss/10 text-moss" : "bg-amber/10 text-amber"
+                allVendorsConfirmed || selectedVendors.length === 0 ? "bg-moss/10 text-moss" : "bg-amber/10 text-amber"
               )}>
-                {allVendorsConfirmed ? "✓ All Checks Passed" : "⏳ Pending"}
+                {allVendorsConfirmed || selectedVendors.length === 0 ? "✓ All Checks Passed" : "⏳ Pending"}
               </Badge>
             </div>
             
@@ -956,9 +1390,9 @@ function Checkout({
                   <span className="font-semibold">{arrivalTime || "17:30"}</span>
                   <span className={cn(
                     "text-xs font-bold",
-                    allVendorsConfirmed ? "text-moss" : "text-amber"
+                    allVendorsConfirmed || selectedVendors.length === 0 ? "text-moss" : "text-amber"
                   )}>
-                    {allVendorsConfirmed ? "✓ Achievable" : "⏳ Pending"}
+                    {allVendorsConfirmed || selectedVendors.length === 0 ? "✓ Achievable" : "⏳ Pending"}
                   </span>
                 </div>
               </div>
@@ -980,7 +1414,7 @@ function Checkout({
               </div>
             </div>
             
-            {allVendorsConfirmed && (
+            {(allVendorsConfirmed || selectedVendors.length === 0) && (
               <div className="mt-4 flex items-center gap-2 rounded-lg bg-teal/10 px-3 py-2 text-xs text-teal animate-fade-up">
                 <Clock size={14} />
                 All timing checks passed. Route is feasible.
@@ -1032,7 +1466,7 @@ function Checkout({
               </span>
             </div>
             
-            {allVendorsConfirmed ? (
+            {(allVendorsConfirmed || selectedVendors.length === 0) ? (
               <div className="mt-4">
                 <PaymentMethodSelection
                   selectedMethod={selectedPaymentMethod}
@@ -1585,7 +2019,7 @@ function EnhancedCustomization({
     'lunch_included': 400,
   };
 
-  // Calculate vendor costs
+  // Calculate vendor costs - only selected vendors
   const selectedVendors = vendors.filter(v => selectedVendorIds.includes(v.id));
   const vendorTotal = selectedVendors.reduce((sum, v) => sum + (v.price || 0), 0);
 
@@ -2068,9 +2502,7 @@ function EnhancedCustomization({
             </div>
           </Card>
 
-          {/* ============================================================
-              NEW: VENDORS SECTION
-              ============================================================ */}
+          {/* VENDORS SECTION */}
           <Card className="p-5 overflow-hidden border-teal/20 bg-teal/5">
             <div className="flex items-center gap-2 mb-4">
               <UsersRound size={16} className="text-teal" />
@@ -2079,7 +2511,7 @@ function EnhancedCustomization({
                 <p className="text-xs text-ink-muted">Select which vendors to include</p>
               </div>
               <Badge className="ml-auto bg-teal/10 text-teal text-[10px]">
-                {selectedVendors.length} of {vendors.length} selected
+                {selectedVendorIds.length} of {vendors.length} selected
               </Badge>
             </div>
 
@@ -2132,7 +2564,7 @@ function EnhancedCustomization({
               })}
             </div>
 
-            {selectedVendors.length === 0 && (
+            {selectedVendorIds.length === 0 && (
               <div className="mt-3 rounded-lg bg-amber/10 p-2 text-center text-xs text-amber">
                 ⚠️ No vendors selected. Please select at least one vendor.
               </div>
@@ -2262,9 +2694,9 @@ function EnhancedCustomization({
                     +{selectedAddons.length} add-ons
                   </span>
                 )}
-                {selectedVendors.length > 0 && (
+                {selectedVendorIds.length > 0 && (
                   <span className="rounded-full bg-paper/10 px-2 py-0.5 text-[8px] font-bold text-teal-light">
-                    {selectedVendors.length} vendors
+                    {selectedVendorIds.length} vendors
                   </span>
                 )}
               </div>
@@ -2283,7 +2715,7 @@ function EnhancedCustomization({
                 <span className="text-ink-muted">Activities</span>
                 <strong>₹{activityCost.toLocaleString("en-IN")}</strong>
               </div>
-              {selectedVendors.length > 0 && (
+              {selectedVendorIds.length > 0 && (
                 <div className="flex justify-between text-teal">
                   <span className="text-ink-muted">Vendors</span>
                   <strong>+₹{vendorTotal.toLocaleString("en-IN")}</strong>
@@ -2326,7 +2758,7 @@ function EnhancedCustomization({
             </Button>
 
             <p className="mt-3 text-center text-[10px] text-ink-muted/60">
-              {feasibilityScore}% feasible · {selectedActivities.length} activities · {selectedVendors.length} vendors
+              {feasibilityScore}% feasible · {selectedActivities.length} activities · {selectedVendorIds.length} vendors
             </p>
           </Card>
         </div>
@@ -2364,7 +2796,7 @@ function WhatsAppChatSimulator({
     {
       id: "2",
       role: "assistant",
-      text: "We have a special fixed rate for you: ₹120. No hidden charges!",
+      text: "We have a special fixed rate for you: ₹2000. No hidden charges!",
     }
   ]);
   const [inputMessage, setInputMessage] = useState("");
@@ -2839,7 +3271,10 @@ function CascadeAnimation({
   const [cascadeStarted, setCascadeStarted] = useState(false);
 
   const getCascadeSteps = useCallback((): CascadeStep[] => {
-    const activeVendors = vendors.filter(v => v.status === 'confirmed' || v.status === 'pending');
+    // Only cascade through vendors that are selected AND pending or confirmed
+    const activeVendors = vendors.filter(v => 
+      (v.status === 'confirmed' || v.status === 'pending')
+    );
     
     if (activeVendors.length === 0) {
       return [
@@ -2860,11 +3295,11 @@ function CascadeAnimation({
       icon: vendor.icon,
       status: 'pending' as const,
       description: `Updating ${vendor.type} details`,
-      delay: index * 80, // FAST: 80ms between steps
+      delay: index * 40, // FASTER: 40ms between steps
     }));
   }, [vendors]);
 
-  // FAST VERSION - resolves in ~1 second
+  // FAST VERSION - resolves in ~500ms
   useEffect(() => {
     if (isResolving && !cascadeStarted && !resolved) {
       setCascadeStarted(true);
@@ -2896,12 +3331,11 @@ function CascadeAnimation({
             setProgress((completed / totalSteps) * 100);
 
             if (completed === totalSteps) {
-              setTimeout(() => {
-                setIsProcessing(false);
-                if (onComplete) onComplete();
-              }, 30);
+              // Complete immediately, no extra delay
+              setIsProcessing(false);
+              if (onComplete) onComplete();
             }
-          }, 80 + Math.random() * 40);
+          }, 40 + Math.random() * 20); // FASTER: 40-60ms
         }, delay);
       });
     }
@@ -3058,10 +3492,10 @@ function RippleOptions({
 
   const handleCascadeComplete = () => {
     setCascadeComplete(true);
-    // FAST: 200ms delay before final resolution
+    // FAST: 50ms delay before final resolution
     setTimeout(() => {
       onResolve(selectedKey);
-    }, 200);
+    }, 50);
   };
 
   const activeVendors = vendors.filter(v => v.status === 'confirmed' || v.status === 'pending');
@@ -3826,25 +4260,93 @@ export default function Home() {
   const [isConfirmingAll, setIsConfirmingAll] = useState(false);
   const [isResolving, setIsResolving] = useState(false);
 
-// Payment state
-const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
-const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-const [paymentConfirmation, setPaymentConfirmation] = useState<PaymentConfirmation | null>(null);
-const [showPaymentConfirmation, setShowPaymentConfirmation] = useState(false);
+  // Payment state
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [paymentConfirmation, setPaymentConfirmation] = useState<PaymentConfirmation | null>(null);
+  const [showPaymentConfirmation, setShowPaymentConfirmation] = useState(false);
 
-// VENDORS MUST BE DECLARED FIRST
-const [vendors, setVendors] = useState<VendorConfirmation[]>([
-  { id: 'hotel', name: 'Kesar Bagh Haveli', type: 'hotel', icon: Hotel, status: 'pending', price: 14200 },
-  { id: 'driver', name: 'Driver · Rajesh K.', type: 'driver', icon: Car, status: 'pending', price: 18400 },
-  { id: 'guide', name: 'Amber Fort Guide', type: 'guide', icon: Compass, status: 'pending', price: 2800 },
-  { id: 'vendor', name: 'Sharma Ji Samosa Hub', type: 'vendor', icon: Store, status: 'pending', price: 120 },
-  { id: 'activity', name: 'Local Food Experience', type: 'activity', icon: UsersRound, status: 'pending', price: 3500 },
-]);
+  // ============================================================
+  // FIX: Dynamic Vendors based on trip selections
+  // ============================================================
+  const [vendors, setVendors] = useState<VendorConfirmation[]>([]);
 
-// Vendor selection state for Customize tab - NOW vendors is defined
-const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>(
-  vendors.map(v => v.id)
-);
+  // Generate vendors dynamically when destination/upgraded/addedStop/selectedActivities change
+  const generatedVendors = useMemo(() => {
+    const newVendors: VendorConfirmation[] = [];
+    
+    // Hotel - always present if destination is set
+    if (destination && destination.trim()) {
+      newVendors.push({
+        id: 'hotel',
+        name: `${destination.split(',')[0]} Heritage Stay`,
+        type: 'hotel',
+        icon: Hotel,
+        status: 'pending',
+        price: upgraded ? 14200 : 13000,
+      });
+    }
+    
+    // Driver - always present for any trip
+    newVendors.push({
+      id: 'driver',
+      name: 'Driver · Rajesh K.',
+      type: 'driver',
+      icon: Car,
+      status: 'pending',
+      price: 18400,
+    });
+    
+    // Guide - only if activities are selected (check from Customize)
+    // We'll use a default for now since selectedActivities is in child component
+    // For demo purposes, always show guide
+    newVendors.push({
+      id: 'guide',
+      name: 'Amber Fort Guide',
+      type: 'guide',
+      icon: Compass,
+      status: 'pending',
+      price: 2800,
+    });
+    
+    // Local Vendor - only if addedStop is true (from Route Radar)
+    if (addedStop) {
+      newVendors.push({
+        id: 'vendor',
+        name: 'Sharma Ji Samosa Hub',
+        type: 'vendor',
+        icon: Store,
+        status: 'pending',
+        price: 120,
+      });
+    }
+    
+    // Activity vendor - always show for demo
+    newVendors.push({
+      id: 'activity',
+      name: 'Local Food Experience',
+      type: 'activity',
+      icon: UsersRound,
+      status: 'pending',
+      price: 3500,
+    });
+    
+    return newVendors;
+  }, [destination, upgraded, addedStop]);
+
+  // Update vendors when generatedVendors changes
+  useEffect(() => {
+    setVendors(generatedVendors);
+  }, [generatedVendors]);
+
+  // Vendor selection state - initialize with all vendor IDs
+  const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>([]);
+
+  // Update selectedVendorIds when vendors change
+  useEffect(() => {
+    setSelectedVendorIds(vendors.map(v => v.id));
+  }, [vendors]);
+
   const toggleVendor = (id: string) => {
     setSelectedVendorIds(prev => 
       prev.includes(id) 
@@ -3878,38 +4380,49 @@ const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>(
           ? { ...v, status: 'confirmed' }
           : v
       ));
-      toast.success(`${vendors.find(v => v.id === id)?.name} confirmed!`);
-    }, 800 + Math.random() * 600);
+      const vendor = vendors.find(v => v.id === id);
+      if (vendor) toast.success(`${vendor.name} confirmed!`);
+    }, 500 + Math.random() * 400);
   };
 
   const handleConfirmAll = () => {
-    setIsConfirmingAll(true);
-    const pendingVendors = vendors.filter(v => v.status === 'pending');
+    // Only confirm selected vendors that are pending
+    const pendingSelectedVendors = vendors.filter(v => 
+      selectedVendorIds.includes(v.id) && v.status === 'pending'
+    );
     
-    pendingVendors.forEach((vendor, index) => {
+    if (pendingSelectedVendors.length === 0) {
+      setIsConfirmingAll(false);
+      toast.info("All selected vendors are already confirmed!");
+      return;
+    }
+    
+    setIsConfirmingAll(true);
+    
+    pendingSelectedVendors.forEach((vendor, index) => {
       setTimeout(() => {
         handleConfirmVendor(vendor.id);
-      }, index * 600 + 300);
+      }, index * 300 + 200);
     });
     
     setTimeout(() => {
       setIsConfirmingAll(false);
-      toast.success("All vendors confirmed!");
-    }, pendingVendors.length * 600 + 1000);
+      toast.success(`All ${pendingSelectedVendors.length} selected vendors confirmed!`);
+    }, pendingSelectedVendors.length * 300 + 500);
   };
 
   const handleResolve = (key: string) => {
     setIsResolving(true);
     setResolutionKey(key);
     
-    // FAST: 800ms final resolution
+    // FAST: 300ms final resolution
     setTimeout(() => {
       setVendors(prev => prev.map(v => ({ ...v, status: 'confirmed' })));
       setResolved(true);
       setIsResolving(false);
       setStep(6);
       toast.success(`Ripple resolved with Option ${key}!`);
-    }, 800);
+    }, 300);
   };
 
   const handlePay = () => {
@@ -3967,14 +4480,8 @@ const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>(
     setIsProcessingPayment(false);
     setPaymentConfirmation(null);
     setShowPaymentConfirmation(false);
-    setVendors([
-      { id: 'hotel', name: 'Kesar Bagh Haveli', type: 'hotel', icon: Hotel, status: 'pending', price: 14200 },
-      { id: 'driver', name: 'Driver · Rajesh K.', type: 'driver', icon: Car, status: 'pending', price: 18400 },
-      { id: 'guide', name: 'Amber Fort Guide', type: 'guide', icon: Compass, status: 'pending', price: 2800 },
-      { id: 'vendor', name: 'Sharma Ji Samosa Hub', type: 'vendor', icon: Store, status: 'pending', price: 120 },
-      { id: 'activity', name: 'Local Food Experience', type: 'activity', icon: UsersRound, status: 'pending', price: 3500 },
-    ]);
-    setSelectedVendorIds(vendors.map(v => v.id));
+    setVendors([]); // Will be regenerated by useEffect
+    setSelectedVendorIds([]);
     setIsConfirmingAll(false);
     setIsResolving(false);
   };
@@ -4149,48 +4656,48 @@ const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>(
                       
                       <div className="border-t border-ink/10 pt-4">
                         <div className="field-shell mb-3">
-  <input 
-    onKeyDown={(e) => {
-      if (e.key === "Enter") {
-        const target = e.target as HTMLInputElement;
-        const msg = target.value;
-        if (!msg.trim()) return;
-        
-        const userMessage: ChatMessage = {
-          id: `user-${Date.now()}`,
-          role: "user",
-          text: msg
-        };
-        const updatedMessages = [...chatMessages, userMessage];
-        setChatMessages(updatedMessages);
-        setChatTyping(true);
-        setTimeout(() => {
-          const response = `I'd be happy to help with ${selectedPOI.name}! ${selectedPOI.description} The detour takes ${selectedPOI.detourTime} and costs ₹${selectedPOI.detourCost}. Would you like to add it to your route?`;
-          const assistantMessage: ChatMessage = {
-            id: `assistant-${Date.now()}`,
-            role: "assistant",
-            text: response
-          };
-          setChatMessages([...updatedMessages, assistantMessage]);
-          setChatTyping(false);
-        }, 800 + Math.random() * 600);
-        target.value = "";
-      }
-    }}
-    placeholder={`Ask about ${selectedPOI.name}...`}
-    aria-label="Chat message"
-    disabled={chatTyping}
-    className="flex-1 bg-transparent outline-none"
-  />
-  <button 
-    type="button" 
-    className="icon-button h-8 w-8 shrink-0"
-    disabled={chatTyping}
-    aria-label="Send message"
-  >
-    <Send size={14} className="text-teal" />
-  </button>
-</div>
+                          <input 
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                const target = e.target as HTMLInputElement;
+                                const msg = target.value;
+                                if (!msg.trim()) return;
+                                
+                                const userMessage: ChatMessage = {
+                                  id: `user-${Date.now()}`,
+                                  role: "user",
+                                  text: msg
+                                };
+                                const updatedMessages = [...chatMessages, userMessage];
+                                setChatMessages(updatedMessages);
+                                setChatTyping(true);
+                                setTimeout(() => {
+                                  const response = `I'd be happy to help with ${selectedPOI.name}! ${selectedPOI.description} The detour takes ${selectedPOI.detourTime} and costs ₹${selectedPOI.detourCost}. Would you like to add it to your route?`;
+                                  const assistantMessage: ChatMessage = {
+                                    id: `assistant-${Date.now()}`,
+                                    role: "assistant",
+                                    text: response
+                                  };
+                                  setChatMessages([...updatedMessages, assistantMessage]);
+                                  setChatTyping(false);
+                                }, 800 + Math.random() * 600);
+                                target.value = "";
+                              }
+                            }}
+                            placeholder={`Ask about ${selectedPOI.name}...`}
+                            aria-label="Chat message"
+                            disabled={chatTyping}
+                            className="flex-1 bg-transparent outline-none"
+                          />
+                          <button 
+                            type="button" 
+                            className="icon-button h-8 w-8 shrink-0"
+                            disabled={chatTyping}
+                            aria-label="Send message"
+                          >
+                            <Send size={14} className="text-teal" />
+                          </button>
+                        </div>
                         <Button 
                           onClick={() => {
                             if (addedPOIs.some(p => p.id === selectedPOI.id)) return;
@@ -4338,6 +4845,7 @@ const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>(
           upgraded={upgraded} 
           onNext={() => setStep(4)}
           vendors={vendors}
+          selectedVendorIds={selectedVendorIds}
           onConfirmVendor={handleConfirmVendor}
           onConfirmAll={handleConfirmAll}
           isConfirmingAll={isConfirmingAll}
