@@ -2241,7 +2241,7 @@ function QrBlock() {
 
 // WhatsApp Chat Simulator
 function WhatsAppChatSimulator({ 
-  vendorName = "Sharma Ji Samosa Hub",
+  vendorName = "Vendor",
   vendorIcon = "🛍️",
   onConfirm,
   isConfirmed,
@@ -2579,15 +2579,33 @@ function DigitalPass({
               <Navigation size={15} /> Track driver
             </button>
             <button 
-              type="button" 
-              onClick={() => {
-                setShowWhatsApp(!showWhatsApp);
-                if (!showWhatsApp) toast.success("Privacy relay chat opened with vendor");
-              }} 
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-paper/10 px-4 py-3 text-xs font-bold text-paper hover:bg-paper/15"
-            >
-              <MessageCircle size={15} /> {showWhatsApp ? "Close chat" : "Privacy chat"}
-            </button>
+  type="button" 
+  onClick={() => {
+    // Check if any vendor is confirmed
+    const hasConfirmedVendor = vendors.some(v => v.status === 'confirmed');
+    
+    if (!hasConfirmedVendor) {
+      toast.warning("No vendors confirmed yet. Please confirm a vendor first.");
+      return;
+    }
+    
+    setShowWhatsApp(!showWhatsApp);
+    if (!showWhatsApp) toast.success("Privacy relay chat opened with vendor");
+  }} 
+  className={cn(
+    "flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-xs font-bold transition-colors",
+    vendors.some(v => v.status === 'confirmed')
+      ? "bg-paper/10 text-paper hover:bg-paper/15"
+      : "bg-paper/5 text-paper/40 cursor-not-allowed"
+  )}
+  disabled={!vendors.some(v => v.status === 'confirmed')}
+>
+  <MessageCircle size={15} /> 
+  {showWhatsApp ? "Close chat" : "Privacy chat"}
+  {!vendors.some(v => v.status === 'confirmed') && (
+    <span className="text-[8px] opacity-50">(no vendors)</span>
+  )}
+</button>
           </div>
         </Card>
         
@@ -2622,24 +2640,36 @@ function DigitalPass({
             </div>
           </Card>
           
-          {showWhatsApp && (
+  
+  {showWhatsApp && (
   <Card className="p-3 border-teal/20 animate-fade-up">
-    {vendors.some(v => v.type === 'vendor' && v.status === 'confirmed') ? (
-      <WhatsAppChatSimulator 
-        vendorName="Sharma Ji Samosa Hub"
-        vendorIcon="🛍️"
-        onConfirm={() => {
-          setVendorChatConfirmed(true);
-          const vendor = vendors.find(v => v.type === 'vendor');
-          if (vendor) onConfirmVendor(vendor.id);
-        }}
-        isConfirmed={vendorChatConfirmed}
-      />
+    {vendors.some(v => v.status === 'confirmed') ? (
+      // Find the first confirmed vendor to chat with
+      (() => {
+        const confirmedVendor = vendors.find(v => v.status === 'confirmed');
+        const vendorName = confirmedVendor?.name || "Vendor";
+        const vendorIcon = confirmedVendor?.type === 'hotel' ? '🏨' : 
+                           confirmedVendor?.type === 'driver' ? '🚗' : 
+                           confirmedVendor?.type === 'guide' ? '🗺️' : '🛍️';
+        
+        return (
+          <WhatsAppChatSimulator 
+            vendorName={vendorName}
+            vendorIcon={vendorIcon}
+            onConfirm={() => {
+              setVendorChatConfirmed(true);
+              const vendor = vendors.find(v => v.type === 'vendor');
+              if (vendor) onConfirmVendor(vendor.id);
+            }}
+            isConfirmed={vendorChatConfirmed}
+          />
+        );
+      })()
     ) : (
       <div className="text-center py-8 text-ink-muted">
         <LockKeyhole size={32} className="mx-auto mb-3 text-ink/30" />
-        <p className="text-sm font-bold">Vendor not yet confirmed</p>
-        <p className="text-xs mt-1">Please confirm the vendor first to start chatting</p>
+        <p className="text-sm font-bold">No vendors confirmed yet</p>
+        <p className="text-xs mt-1">Please confirm a vendor first to start chatting</p>
         <Button 
           onClick={() => setShowWhatsApp(false)}
           variant="outline"
