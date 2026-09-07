@@ -89,6 +89,26 @@ import {
   Mic,
   Smile,
   MoreVertical,
+  Wifi,
+  // Parking,  // ← REMOVE THIS LINE
+  Coffee,
+  Utensils,
+  Dumbbell,
+  Wind,
+  Sun,
+  Moon,
+  Trees,
+  Waves,
+  Mountain,
+  Flower,
+  Sparkle,
+  Crown,
+  Gem,
+  Shield,
+  Users,
+  Briefcase,
+  Heart,
+  Star as StarIcon,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -2014,99 +2034,190 @@ function RouteRadar({
 }
 
 // =============================================================================
-// CUSTOMIZE COMPONENT
+// ENHANCED CUSTOMIZE COMPONENT - WITH REAL IMAGES
 // =============================================================================
 
-function Customization({ upgraded, setUpgraded, addedStop, tripTotal, onNext }: { upgraded: boolean; setUpgraded: (value: boolean) => void; addedStop: boolean; tripTotal: number; onNext: () => void }) {
-  const grandTotal = tripTotal + (upgraded ? 1200 : 0);
+type PackageTier = 'essential' | 'standard' | 'premium' | 'luxury';
+type RoomType = 'standard' | 'deluxe' | 'suite' | 'presidential';
+type MealPlan = 'breakfast' | 'half_board' | 'full_board' | 'all_inclusive';
+type TransportType = 'sedan' | 'suv' | 'luxury' | 'minivan';
+type ActivityLevel = 'relaxed' | 'moderate' | 'active' | 'extreme';
+
+// Category Images - Real Unsplash Photos
+const categoryImages = {
+  // Accommodation
+  standardRoom: "https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=800&q=80",
+  deluxeRoom: "https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=800&q=80",
+  suiteRoom: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80",
+  presidentialSuite: "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=800&q=80",
+  gardenView: "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=800&q=80",
+  poolView: "https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=800&q=80",
+  cityView: "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=800&q=80",
+  mountainView: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=800&q=80",
   
-  const options = [
-    { 
-      type: "Heritage stay", 
-      title: "Kesar Bagh Haveli", 
-      copy: "Courtyard rooms · breakfast included", 
-      price: upgraded ? "₹14,200" : "₹13,000", 
-      image: "https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=720&q=80", 
-      selected: true,
-      alternatives: [
-        { name: "Palace View Hotel", price: "₹11,500" },
-        { name: "Garden Retreat", price: "₹12,000" },
-        { name: "Heritage Haveli", price: "₹14,200" },
-      ]
-    },
-    { 
-      type: "Activity", 
-      title: "Amber Fort at golden hour", 
-      copy: "Local guide · 45 min viewpoint buffer", 
-      price: "₹2,800", 
-      image: "https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=720&q=80", 
-      selected: true,
-      alternatives: [
-        { name: "City Palace tour", price: "₹1,800" },
-        { name: "Jantar Mantar visit", price: "₹900" },
-        { name: "Hawa Mahal photo walk", price: "₹600" },
-      ]
-    },
-    { 
-      type: "Transport", 
-      title: "Sedan + local driver", 
-      copy: "Rest windows protected · 3 days", 
-      price: "₹18,400", 
-      image: "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=720&q=80", 
-      selected: true,
-      alternatives: [
-        { name: "SUV + driver", price: "₹22,500" },
-        { name: "Luxury sedan", price: "₹28,000" },
-        { name: "Self-drive", price: "₹12,000" },
-      ]
-    },
-    { 
-      type: "Meal Plan", 
-      title: "Local food experiences", 
-      copy: "2 dinners · 1 street food tour", 
-      price: "₹3,500", 
-      image: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=720&q=80", 
-      selected: false,
-      alternatives: [
-        { name: "All meals included", price: "₹6,800" },
-        { name: "Breakfast only", price: "₹1,200" },
-        { name: "Chef's table experience", price: "₹4,500" },
-      ]
-    },
-    { 
-      type: "Wellness", 
-      title: "Morning yoga sessions", 
-      copy: "2 sunrise sessions · hotel terrace", 
-      price: "₹1,800", 
-      image: "https://images.unsplash.com/photo-1545205597-3d9d02c29597?auto=format&fit=crop&w=720&q=80", 
-      selected: false,
-      alternatives: [
-        { name: "Spa day add-on", price: "₹4,200" },
-        { name: "Meditation retreat", price: "₹2,500" },
-        { name: "None", price: "₹0" },
-      ]
-    },
-    { 
-      type: "Photography", 
-      title: "Sunrise photography tour", 
-      copy: "Professional guide · best light spots", 
-      price: "₹2,200", 
-      image: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=720&q=80", 
-      selected: false,
-      alternatives: [
-        { name: "Street photography walk", price: "₹1,500" },
-        { name: "Drone photography session", price: "₹3,800" },
-        { name: "None", price: "₹0" },
-      ]
-    },
-  ];
+  // Meal Plans
+  breakfast: "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?auto=format&fit=crop&w=800&q=80",
+  halfBoard: "https://images.unsplash.com/photo-1551218808-94e220e084d2?auto=format&fit=crop&w=800&q=80",
+  fullBoard: "https://images.unsplash.com/photo-1559314809-0d155014e29e?auto=format&fit=crop&w=800&q=80",
+  allInclusive: "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=800&q=80",
   
-  const [selectedOptions, setSelectedOptions] = useState<Record<string, number>>({});
+  // Transport
+  sedan: "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=800&q=80",
+  suv: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80",
+  luxuryCar: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80",
+  minivan: "https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=800&q=80",
   
-  const handleAlternativeSelect = (optionIndex: number, altIndex: number) => {
-    setSelectedOptions(prev => ({ ...prev, [optionIndex]: altIndex }));
-    toast.success(`Updated: ${options[optionIndex].alternatives[altIndex].name}`);
+  // Activities
+  fortVisit: "https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&w=800&q=80",
+  cityTour: "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=800&q=80",
+  cookingClass: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80",
+  yoga: "https://images.unsplash.com/photo-1545205597-3d9d02c29597?auto=format&fit=crop&w=800&q=80",
+  spa: "https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80",
+  trekking: "https://images.unsplash.com/photo-1551632811-561732d1e306?auto=format&fit=crop&w=800&q=80",
+  photography: "https://images.unsplash.com/photo-1504208434309-cb69f4fe52b0?auto=format&fit=crop&w=800&q=80",
+  museum: "https://images.unsplash.com/photo-1577099448232-3269c2f2729a?auto=format&fit=crop&w=800&q=80",
+  boatRide: "https://images.unsplash.com/photo-1593693411515-c20261bcad6e?auto=format&fit=crop&w=800&q=80",
+  safari: "https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&w=800&q=80",
+};
+
+function EnhancedCustomization({ 
+  upgraded, 
+  setUpgraded, 
+  addedStop, 
+  tripTotal, 
+  onNext 
+}: { 
+  upgraded: boolean; 
+  setUpgraded: (value: boolean) => void; 
+  addedStop: boolean; 
+  tripTotal: number; 
+  onNext: () => void;
+}) {
+  // Package Tier
+  const [packageTier, setPackageTier] = useState<PackageTier>('standard');
+  
+  // Accommodation
+  const [roomType, setRoomType] = useState<RoomType>('standard');
+  const [roomView, setRoomView] = useState<'garden' | 'pool' | 'city' | 'mountain'>('garden');
+  const [extraBed, setExtraBed] = useState(false);
+  
+  // Meals
+  const [mealPlan, setMealPlan] = useState<MealPlan>('breakfast');
+  const [dietaryPreference, setDietaryPreference] = useState<'none' | 'vegetarian' | 'vegan' | 'gluten_free' | 'halal'>('none');
+  const [specialOccasion, setSpecialOccasion] = useState<'none' | 'anniversary' | 'birthday' | 'honeymoon'>('none');
+  
+  // Transport
+  const [transportType, setTransportType] = useState<TransportType>('sedan');
+  const [driverService, setDriverService] = useState<'self' | 'driver' | 'chauffeur'>('driver');
+  
+  // Activities
+  const [activityLevel, setActivityLevel] = useState<ActivityLevel>('moderate');
+  const [selectedActivities, setSelectedActivities] = useState<string[]>(['fort_visit']);
+  const [groupTour, setGroupTour] = useState<boolean>(true);
+  const [privateGuide, setPrivateGuide] = useState<boolean>(false);
+  
+  // Add-ons
+  const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
+  const [travelInsurance, setTravelInsurance] = useState<boolean>(false);
+  const [priorityCheckin, setPriorityCheckin] = useState<boolean>(false);
+  
+  // Extras
+  const [earlyCheckin, setEarlyCheckin] = useState<boolean>(false);
+  const [lateCheckout, setLateCheckout] = useState<boolean>(false);
+  const [airportTransfer, setAirportTransfer] = useState<boolean>(false);
+  const [welcomeDrink, setWelcomeDrink] = useState<boolean>(true);
+
+  // Pricing calculations
+  const tierPrices = {
+    essential: { base: 0, label: 'Essential', color: 'bg-moss/10 text-moss' },
+    standard: { base: 1200, label: 'Standard', color: 'bg-teal/10 text-teal' },
+    premium: { base: 3200, label: 'Premium', color: 'bg-saffron/10 text-saffron' },
+    luxury: { base: 6200, label: 'Luxury', color: 'bg-coral/10 text-coral' },
   };
+
+  const roomPrices = {
+    standard: 0,
+    deluxe: 800,
+    suite: 1800,
+    presidential: 3800,
+  };
+
+  const viewPrices = {
+    garden: 0,
+    pool: 300,
+    city: 500,
+    mountain: 800,
+  };
+
+  const mealPrices = {
+    breakfast: 0,
+    half_board: 600,
+    full_board: 1200,
+    all_inclusive: 2200,
+  };
+
+  const transportPrices = {
+    sedan: 0,
+    suv: 800,
+    luxury: 2200,
+    minivan: 1200,
+  };
+
+  const activityPrices: Record<string, number> = {
+    fort_visit: 0,
+    city_tour: 600,
+    cooking_class: 900,
+    yoga: 800,
+    spa: 1500,
+    trekking: 1100,
+    photography: 1200,
+    museum: 400,
+    boat_ride: 700,
+    safari: 1800,
+  };
+
+  const addonPrices: Record<string, number> = {
+    'guided_tour': 500,
+    'audio_guide': 200,
+    'skip_the_line': 400,
+    'transport_included': 300,
+    'lunch_included': 400,
+  };
+
+  const baseHotelPrice = upgraded ? 14200 : 13000;
+  const tierCost = tierPrices[packageTier].base;
+  const roomCost = roomPrices[roomType] + viewPrices[roomView] + (extraBed ? 500 : 0);
+  const mealCost = mealPrices[mealPlan];
+  const transportCost = transportPrices[transportType] + (driverService === 'chauffeur' ? 1200 : 0);
+  const activityCost = selectedActivities.reduce((sum, id) => sum + (activityPrices[id] || 0), 0);
+  const addonCost = selectedAddons.reduce((sum, id) => sum + (addonPrices[id] || 0), 0);
+  const extraCosts = (travelInsurance ? 800 : 0) + (priorityCheckin ? 400 : 0) + (earlyCheckin ? 300 : 0) + (lateCheckout ? 300 : 0) + (airportTransfer ? 600 : 0);
+  
+  const hotelsPrice = baseHotelPrice + tierCost + roomCost + mealCost;
+  const grandTotal = hotelsPrice + transportCost + activityCost + addonCost + extraCosts + (addedStop ? 240 : 0);
+
+  const toggleAddon = (id: string) => {
+    setSelectedAddons(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleActivity = (id: string) => {
+    setSelectedActivities(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  // Feasibility checks
+  const feasibilityChecks = [
+    { label: "Room availability", status: roomType === 'presidential' ? "limited" : "available", detail: roomType === 'presidential' ? "1 suite left" : "Available" },
+    { label: "Driver schedule", status: "available", detail: "Confirmed" },
+    { label: "Activity slots", status: activityLevel === 'extreme' ? "limited" : "available", detail: activityLevel === 'extreme' ? "2 spots left" : "Available" },
+    { label: "Budget alignment", status: grandTotal <= 70000 ? "available" : "limited", detail: grandTotal <= 70000 ? "Within budget" : "Near limit" },
+    { label: "Meal availability", status: mealPlan === 'all_inclusive' ? "limited" : "available", detail: mealPlan === 'all_inclusive' ? "Limited spots" : "Available" },
+  ];
+
+  const feasibilityScore = Math.round((feasibilityChecks.filter(c => c.status === 'available').length / feasibilityChecks.length) * 100);
 
   return (
     <div className="space-y-8 animate-fade-up">
@@ -2115,87 +2226,631 @@ function Customization({ upgraded, setUpgraded, addedStop, tripTotal, onNext }: 
         <h1>Make the itinerary feel <em>like yours.</em></h1>
         <p>Swap the parts that matter. Orbit keeps the route, margin, and driver rest buffer in view.</p>
       </div>
-      
-      <div className="grid gap-6 xl:grid-cols-[1fr_330px]">
+
+      {/* Package Tier Selector - 4 tiers */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {(Object.keys(tierPrices) as PackageTier[]).map((tier) => {
+          const info = tierPrices[tier];
+          const isSelected = packageTier === tier;
+          const isRecommended = tier === 'standard';
+          return (
+            <button
+              key={tier}
+              type="button"
+              onClick={() => setPackageTier(tier)}
+              className={cn(
+                "rounded-2xl border-2 p-4 text-left transition-all duration-300",
+                isSelected 
+                  ? "border-teal/40 bg-teal/5 shadow-[0_4px_20px_rgba(13,148,136,0.08)]" 
+                  : "border-ink/10 bg-paper hover:border-teal/20",
+                isRecommended && !isSelected && "border-amber/20 bg-amber/5"
+              )}
+            >
+              <div className="flex items-center justify-between">
+                <span className={cn(
+                  "text-xs font-bold uppercase tracking-wider",
+                  isSelected ? "text-teal" : "text-ink-muted"
+                )}>
+                  {info.label}
+                </span>
+                {isRecommended && (
+                  <span className="rounded-full bg-amber/10 px-2 py-0.5 text-[8px] font-bold text-amber">⭐ Popular</span>
+                )}
+                {isSelected && (
+                  <span className="rounded-full bg-teal/10 px-2 py-0.5 text-[8px] font-bold text-teal">✓</span>
+                )}
+              </div>
+              <p className="mt-2 font-display text-xl font-semibold tracking-tighter">
+                +₹{info.base.toLocaleString("en-IN")}
+              </p>
+              <p className="mt-1 text-xs text-ink-muted">
+                {tier === 'essential' && 'Core experience'}
+                {tier === 'standard' && 'Enhanced comfort'}
+                {tier === 'premium' && 'Premium luxury'}
+                {tier === 'luxury' && 'Ultimate experience'}
+              </p>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Main customization grid */}
+      <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
         <div className="space-y-4">
-          {options.map((option, index) => (
-            <Card key={option.title} className="custom-option-card">
-              <img src={option.image} alt="" className="h-28 w-36 shrink-0 rounded-xl object-cover sm:h-32 sm:w-44" />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <MiniLabel tone={index === 1 ? "saffron" : "teal"}>{option.type}</MiniLabel>
-                    <h3 className="mt-2 truncate font-display text-xl font-semibold tracking-tighter text-ink">{option.title}</h3>
-                    <p className="mt-1 text-xs text-ink-muted">{option.copy}</p>
-                  </div>
-                  <span className="hidden text-sm font-bold text-ink sm:block">{option.price}</span>
-                </div>
-                <div className="mt-4 flex items-center gap-3">
-                  <StatusChip tone="green">Feasible</StatusChip>
-                  <button type="button" onClick={() => toast.info(`${option.title} · ${option.copy}`)} className="text-xs font-bold text-teal hover:underline">View details</button>
-                  {index === 0 && (
-                    <button type="button" onClick={() => setUpgraded(!upgraded)} className={cn("ml-auto rounded-lg border px-3 py-2 text-xs font-bold transition-colors", upgraded ? "border-teal/20 bg-teal/10 text-teal" : "border-ink/12 text-ink-muted hover:border-teal/30 hover:text-teal")}>
-                      {upgraded ? "Upgraded" : "Swap room"}
+          {/* Accommodation Section */}
+          <Card className="p-5 overflow-hidden">
+            <div className="flex items-center gap-2 mb-4">
+              <Hotel size={16} className="text-teal" />
+              <div>
+                <p className="field-label">Accommodation</p>
+                <p className="text-xs text-ink-muted">Customize your stay</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              {/* Room Type with Images */}
+              <div>
+                <p className="text-xs font-bold text-ink mb-2">Room Type</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    { id: 'standard', label: 'Standard', price: 0, img: categoryImages.standardRoom },
+                    { id: 'deluxe', label: 'Deluxe', price: 800, img: categoryImages.deluxeRoom },
+                    { id: 'suite', label: 'Suite', price: 1800, img: categoryImages.suiteRoom },
+                    { id: 'presidential', label: 'Presidential', price: 3800, img: categoryImages.presidentialSuite },
+                  ] as const).map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setRoomType(option.id)}
+                      className={cn(
+                        "rounded-xl overflow-hidden border-2 transition-all text-left",
+                        roomType === option.id 
+                          ? "border-teal/40 shadow-[0_0_0_4px_rgba(13,148,136,0.15)]" 
+                          : "border-ink/10 hover:border-teal/20"
+                      )}
+                    >
+                      <img 
+                        src={option.img} 
+                        alt={option.label}
+                        className="h-20 w-full object-cover"
+                      />
+                      <div className="px-3 py-2">
+                        <span className="text-sm font-bold text-ink">{option.label}</span>
+                        <p className="text-[10px] text-ink-muted">+₹{option.price}</p>
+                      </div>
                     </button>
-                  )}
-                </div>
-                
-                <div className="mt-3 border-t border-ink/8 pt-3">
-                  <button 
-                    type="button" 
-                    onClick={() => toast.info(`${option.title} alternatives shown`)}
-                    className="flex items-center gap-2 text-xs font-bold text-teal"
-                  >
-                    <ChevronDown size={13} /> Choose alternative
-                  </button>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {option.alternatives.map((alt, altIndex) => (
-                      <button
-                        key={alt.name}
-                        type="button"
-                        onClick={() => handleAlternativeSelect(index, altIndex)}
-                        className={cn(
-                          "rounded-full border px-3 py-1.5 text-[10px] font-bold transition-colors",
-                          selectedOptions[index] === altIndex
-                            ? "border-teal/30 bg-teal/10 text-teal"
-                            : "border-ink/10 text-ink-muted hover:border-teal/25 hover:text-teal"
-                        )}
-                      >
-                        {alt.name} · {alt.price}
-                      </button>
-                    ))}
-                  </div>
+                  ))}
                 </div>
               </div>
-            </Card>
-          ))}
+
+              {/* Room View with Images */}
+              <div>
+                <p className="text-xs font-bold text-ink mb-2">Room View</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    { id: 'garden', label: 'Garden', price: 0, img: categoryImages.gardenView },
+                    { id: 'pool', label: 'Pool', price: 300, img: categoryImages.poolView },
+                    { id: 'city', label: 'City', price: 500, img: categoryImages.cityView },
+                    { id: 'mountain', label: 'Mountain', price: 800, img: categoryImages.mountainView },
+                  ] as const).map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setRoomView(option.id)}
+                      className={cn(
+                        "rounded-xl overflow-hidden border-2 transition-all text-left",
+                        roomView === option.id 
+                          ? "border-teal/40 shadow-[0_0_0_4px_rgba(13,148,136,0.15)]" 
+                          : "border-ink/10 hover:border-teal/20"
+                      )}
+                    >
+                      <img 
+                        src={option.img} 
+                        alt={option.label}
+                        className="h-16 w-full object-cover"
+                      />
+                      <div className="px-3 py-1.5">
+                        <span className="text-xs font-bold text-ink">{option.label}</span>
+                        <p className="text-[9px] text-ink-muted">+₹{option.price}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Extra options */}
+              <div className="flex flex-wrap gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setExtraBed(!extraBed)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-bold transition-all",
+                    extraBed ? "border-teal/30 bg-teal/5 text-teal" : "border-ink/10 text-ink-muted"
+                  )}
+                >
+                  {extraBed ? <Check size={14} /> : <Plus size={14} />}
+                  Extra Bed (+₹500)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEarlyCheckin(!earlyCheckin)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-bold transition-all",
+                    earlyCheckin ? "border-teal/30 bg-teal/5 text-teal" : "border-ink/10 text-ink-muted"
+                  )}
+                >
+                  {earlyCheckin ? <Check size={14} /> : <Plus size={14} />}
+                  Early Check-in (+₹300)
+                </button>
+              </div>
+            </div>
+          </Card>
+
+          {/* Meal Plan Section with Images */}
+          <Card className="p-5 overflow-hidden">
+            <div className="flex items-center gap-2 mb-4">
+              <Utensils size={16} className="text-saffron" />
+              <div>
+                <p className="field-label">Meal Plan</p>
+                <p className="text-xs text-ink-muted">Choose your dining experience</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { id: 'breakfast', label: 'Breakfast', price: 0, img: categoryImages.breakfast },
+                  { id: 'half_board', label: 'Half Board', price: 600, img: categoryImages.halfBoard },
+                  { id: 'full_board', label: 'Full Board', price: 1200, img: categoryImages.fullBoard },
+                  { id: 'all_inclusive', label: 'All Inclusive', price: 2200, img: categoryImages.allInclusive },
+                ] as const).map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setMealPlan(option.id)}
+                    className={cn(
+                      "rounded-xl overflow-hidden border-2 transition-all text-left",
+                      mealPlan === option.id 
+                        ? "border-teal/40 shadow-[0_0_0_4px_rgba(13,148,136,0.15)]" 
+                        : "border-ink/10 hover:border-teal/20"
+                    )}
+                  >
+                    <img 
+                      src={option.img} 
+                      alt={option.label}
+                      className="h-16 w-full object-cover"
+                    />
+                    <div className="px-3 py-1.5">
+                      <span className="text-xs font-bold text-ink">{option.label}</span>
+                      <p className="text-[9px] text-ink-muted">+₹{option.price}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Dietary Preferences */}
+              <div>
+                <p className="text-xs font-bold text-ink mb-2">Dietary Preference</p>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { id: 'none', label: 'Standard' },
+                    { id: 'vegetarian', label: '🌱 Vegetarian' },
+                    { id: 'vegan', label: '🌿 Vegan' },
+                    { id: 'gluten_free', label: '🌾 Gluten Free' },
+                    { id: 'halal', label: '☪️ Halal' },
+                  ] as const).map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setDietaryPreference(option.id)}
+                      className={cn(
+                        "rounded-full border px-3 py-1 text-xs font-bold transition-all",
+                        dietaryPreference === option.id 
+                          ? "border-teal/30 bg-teal/5 text-teal" 
+                          : "border-ink/10 text-ink-muted hover:border-teal/20"
+                      )}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Special Occasion */}
+              <div>
+                <p className="text-xs font-bold text-ink mb-2">Special Occasion</p>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { id: 'none', label: 'None' },
+                    { id: 'anniversary', label: '💑 Anniversary' },
+                    { id: 'birthday', label: '🎂 Birthday' },
+                    { id: 'honeymoon', label: '🌹 Honeymoon' },
+                  ] as const).map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setSpecialOccasion(option.id)}
+                      className={cn(
+                        "rounded-full border px-3 py-1 text-xs font-bold transition-all",
+                        specialOccasion === option.id 
+                          ? "border-teal/30 bg-teal/5 text-teal" 
+                          : "border-ink/10 text-ink-muted hover:border-teal/20"
+                      )}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Transport Section with Images */}
+          <Card className="p-5 overflow-hidden">
+            <div className="flex items-center gap-2 mb-4">
+              <Car size={16} className="text-amber" />
+              <div>
+                <p className="field-label">Transport</p>
+                <p className="text-xs text-ink-muted">Choose your ride</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { id: 'sedan', label: 'Sedan', price: 0, img: categoryImages.sedan },
+                  { id: 'suv', label: 'SUV', price: 800, img: categoryImages.suv },
+                  { id: 'luxury', label: 'Luxury', price: 2200, img: categoryImages.luxuryCar },
+                  { id: 'minivan', label: 'Minivan', price: 1200, img: categoryImages.minivan },
+                ] as const).map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setTransportType(option.id)}
+                    className={cn(
+                      "rounded-xl overflow-hidden border-2 transition-all text-left",
+                      transportType === option.id 
+                        ? "border-teal/40 shadow-[0_0_0_4px_rgba(13,148,136,0.15)]" 
+                        : "border-ink/10 hover:border-teal/20"
+                    )}
+                  >
+                    <img 
+                      src={option.img} 
+                      alt={option.label}
+                      className="h-16 w-full object-cover"
+                    />
+                    <div className="px-3 py-1.5">
+                      <span className="text-xs font-bold text-ink">{option.label}</span>
+                      <p className="text-[9px] text-ink-muted">+₹{option.price}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Driver Options */}
+              <div>
+                <p className="text-xs font-bold text-ink mb-2">Driver Service</p>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { id: 'self', label: 'Self Drive', price: 0 },
+                    { id: 'driver', label: 'With Driver', price: 0 },
+                    { id: 'chauffeur', label: '👔 Chauffeur', price: 1200 },
+                  ] as const).map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setDriverService(option.id)}
+                      className={cn(
+                        "rounded-full border px-3 py-1 text-xs font-bold transition-all",
+                        driverService === option.id 
+                          ? "border-teal/30 bg-teal/5 text-teal" 
+                          : "border-ink/10 text-ink-muted hover:border-teal/20"
+                      )}
+                    >
+                      {option.label} {option.price > 0 && `+₹${option.price}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Activities Section with Images */}
+          <Card className="p-5 overflow-hidden">
+            <div className="flex items-center gap-2 mb-4">
+              <Compass size={16} className="text-coral" />
+              <div>
+                <p className="field-label">Activities</p>
+                <p className="text-xs text-ink-muted">Choose your experiences</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              {/* Activity Level */}
+              <div>
+                <p className="text-xs font-bold text-ink mb-2">Activity Level</p>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { id: 'relaxed', label: '🧘 Relaxed' },
+                    { id: 'moderate', label: '🚶 Moderate' },
+                    { id: 'active', label: '🏃 Active' },
+                    { id: 'extreme', label: '⚡ Extreme' },
+                  ] as const).map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setActivityLevel(option.id)}
+                      className={cn(
+                        "rounded-full border px-3 py-1 text-xs font-bold transition-all",
+                        activityLevel === option.id 
+                          ? "border-teal/30 bg-teal/5 text-teal" 
+                          : "border-ink/10 text-ink-muted hover:border-teal/20"
+                      )}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Activity Selection with Images */}
+              <div>
+                <p className="text-xs font-bold text-ink mb-2">Select Activities</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'fort_visit', label: 'Fort Visit', price: 0, img: categoryImages.fortVisit },
+                    { id: 'city_tour', label: 'City Tour', price: 600, img: categoryImages.cityTour },
+                    { id: 'cooking_class', label: 'Cooking Class', price: 900, img: categoryImages.cookingClass },
+                    { id: 'yoga', label: 'Yoga Session', price: 800, img: categoryImages.yoga },
+                    { id: 'spa', label: 'Spa Day', price: 1500, img: categoryImages.spa },
+                    { id: 'trekking', label: 'Trekking', price: 1100, img: categoryImages.trekking },
+                    { id: 'photography', label: 'Photo Tour', price: 1200, img: categoryImages.photography },
+                    { id: 'museum', label: 'Museum Visit', price: 400, img: categoryImages.museum },
+                    { id: 'boat_ride', label: 'Boat Ride', price: 700, img: categoryImages.boatRide },
+                    { id: 'safari', label: 'Safari', price: 1800, img: categoryImages.safari },
+                  ].map((activity) => {
+                    const isSelected = selectedActivities.includes(activity.id);
+                    return (
+                      <button
+                        key={activity.id}
+                        type="button"
+                        onClick={() => toggleActivity(activity.id)}
+                        className={cn(
+                          "rounded-xl overflow-hidden border-2 transition-all text-left",
+                          isSelected 
+                            ? "border-teal/40 shadow-[0_0_0_4px_rgba(13,148,136,0.15)]" 
+                            : "border-ink/10 hover:border-teal/20"
+                        )}
+                      >
+                        <img 
+                          src={activity.img} 
+                          alt={activity.label}
+                          className="h-14 w-full object-cover"
+                        />
+                        <div className="flex items-center justify-between px-2 py-1.5">
+                          <span className="text-[10px] font-bold text-ink">{activity.label}</span>
+                          {activity.price > 0 && (
+                            <span className="text-[8px] text-ink-muted">+₹{activity.price}</span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Tour Options */}
+              <div className="flex flex-wrap gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setGroupTour(!groupTour)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-bold transition-all",
+                    groupTour ? "border-teal/30 bg-teal/5 text-teal" : "border-ink/10 text-ink-muted"
+                  )}
+                >
+                  {groupTour ? <Check size={14} /> : <Plus size={14} />}
+                  Group Tour
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrivateGuide(!privateGuide)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-bold transition-all",
+                    privateGuide ? "border-teal/30 bg-teal/5 text-teal" : "border-ink/10 text-ink-muted"
+                  )}
+                >
+                  {privateGuide ? <Check size={14} /> : <Plus size={14} />}
+                  Private Guide (+₹800)
+                </button>
+              </div>
+            </div>
+          </Card>
+
+          {/* Add-ons & Extras */}
+          <Card className="p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles size={16} className="text-saffron" />
+              <div>
+                <p className="field-label">Add-ons & Extras</p>
+                <p className="text-xs text-ink-muted">Enhance your experience</p>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: 'guided_tour', label: '🎯 Guided Tour', price: 500 },
+                  { id: 'audio_guide', label: '🎧 Audio Guide', price: 200 },
+                  { id: 'skip_the_line', label: '⏭️ Skip-the-Line', price: 400 },
+                  { id: 'transport_included', label: '🚌 Transport', price: 300 },
+                  { id: 'lunch_included', label: '🍱 Lunch', price: 400 },
+                ].map((addon) => {
+                  const isSelected = selectedAddons.includes(addon.id);
+                  return (
+                    <button
+                      key={addon.id}
+                      type="button"
+                      onClick={() => toggleAddon(addon.id)}
+                      className={cn(
+                        "flex items-center justify-between rounded-xl border px-3 py-2 transition-all",
+                        isSelected 
+                          ? "border-teal/30 bg-teal/5" 
+                          : "border-ink/8 hover:border-teal/20"
+                      )}
+                    >
+                      <span className="text-xs font-bold text-ink">{addon.label}</span>
+                      <span className="text-[9px] text-ink-muted">+₹{addon.price}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Extra Services */}
+              <div className="border-t border-ink/8 pt-3">
+                <p className="text-xs font-bold text-ink mb-2">Extra Services</p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { id: 'insurance', label: '🛡️ Travel Insurance', price: 800, state: travelInsurance, setState: setTravelInsurance },
+                    { id: 'priority', label: '⭐ Priority Check-in', price: 400, state: priorityCheckin, setState: setPriorityCheckin },
+                    { id: 'late_checkout', label: '⏰ Late Checkout', price: 300, state: lateCheckout, setState: setLateCheckout },
+                    { id: 'airport', label: '✈️ Airport Transfer', price: 600, state: airportTransfer, setState: setAirportTransfer },
+                  ].map((service) => (
+                    <button
+                      key={service.id}
+                      type="button"
+                      onClick={() => service.setState(!service.state)}
+                      className={cn(
+                        "rounded-full border px-3 py-1 text-xs font-bold transition-all",
+                        service.state 
+                          ? "border-teal/30 bg-teal/5 text-teal" 
+                          : "border-ink/10 text-ink-muted hover:border-teal/20"
+                      )}
+                    >
+                      {service.state ? <Check size={12} className="inline mr-1" /> : <Plus size={12} className="inline mr-1" />}
+                      {service.label} +₹{service.price}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Feasibility */}
+          <Card className="p-5 border-amber/20 bg-amber/5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles size={16} className="text-amber" />
+                <p className="text-xs font-bold text-ink">Feasibility Check</p>
+              </div>
+              <span className="text-xs font-bold text-moss">
+                {feasibilityScore}% feasible
+              </span>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-1.5">
+              {feasibilityChecks.map((check) => (
+                <div key={check.label} className="flex items-center gap-1.5 text-xs">
+                  <span className={cn(
+                    "h-1.5 w-1.5 rounded-full",
+                    check.status === 'available' ? "bg-moss" : "bg-amber"
+                  )} />
+                  <span className="text-ink-muted">{check.label}</span>
+                  <span className={cn(
+                    "text-[9px] font-bold",
+                    check.status === 'available' ? "text-moss" : "text-amber"
+                  )}>
+                    {check.status === 'available' ? '✓' : '⚠️'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </Card>
         </div>
-        
-        <Card className="h-fit p-5 xl:sticky xl:top-28">
-          <div className="flex items-center justify-between">
-            <MiniLabel>Live delta pricing</MiniLabel>
-            <TrendingUp size={16} className="text-teal" />
-          </div>
-          <div className="mt-5 rounded-2xl bg-ink p-4 text-paper">
-            <p className="text-xs text-paper/52">Current total</p>
-            <p className="mt-1 font-display text-3xl font-semibold tracking-tighter">₹{grandTotal.toLocaleString("en-IN")}</p>
-            <p className="mt-2 text-xs font-semibold text-teal-light">
-              {upgraded ? "+₹1,200 · room upgrade" : addedStop ? "+₹240 · local stop" : "Route base price"}
+
+        {/* Sticky Pricing Summary */}
+        <div className="space-y-5">
+          <Card className="sticky top-28 p-5">
+            <div className="flex items-center justify-between">
+              <MiniLabel>Live delta pricing</MiniLabel>
+              <span className="text-[10px] font-bold text-teal">Real-time</span>
+            </div>
+
+            <div className="mt-4 rounded-2xl bg-ink p-4 text-paper">
+              <p className="text-xs text-paper/52">Total trip cost</p>
+              <p className="mt-1 font-display text-3xl font-semibold tracking-tighter">
+                ₹{grandTotal.toLocaleString("en-IN")}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <span className="rounded-full bg-paper/10 px-2 py-0.5 text-[8px] font-bold text-teal-light">
+                  {tierPrices[packageTier].label}
+                </span>
+                {selectedActivities.length > 0 && (
+                  <span className="rounded-full bg-paper/10 px-2 py-0.5 text-[8px] font-bold text-saffron-light">
+                    {selectedActivities.length} activities
+                  </span>
+                )}
+                {selectedAddons.length > 0 && (
+                  <span className="rounded-full bg-paper/10 px-2 py-0.5 text-[8px] font-bold text-coral-light">
+                    +{selectedAddons.length} add-ons
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-1.5 border-b border-ink/8 pb-4 text-xs">
+              <div className="flex justify-between">
+                <span className="text-ink-muted">Hotel · {roomType}</span>
+                <strong>₹{hotelsPrice.toLocaleString("en-IN")}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-ink-muted">Transport · {transportType}</span>
+                <strong>₹{transportCost.toLocaleString("en-IN")}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-ink-muted">Activities</span>
+                <strong>₹{activityCost.toLocaleString("en-IN")}</strong>
+              </div>
+              {selectedAddons.length > 0 && (
+                <div className="flex justify-between text-teal">
+                  <span className="text-ink-muted">Add-ons</span>
+                  <strong>+₹{addonCost.toLocaleString("en-IN")}</strong>
+                </div>
+              )}
+              {extraCosts > 0 && (
+                <div className="flex justify-between text-coral">
+                  <span className="text-ink-muted">Extras</span>
+                  <strong>+₹{extraCosts.toLocaleString("en-IN")}</strong>
+                </div>
+              )}
+              {addedStop && (
+                <div className="flex justify-between">
+                  <span className="text-ink-muted">Local stop</span>
+                  <strong className="text-teal">+₹240</strong>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 flex items-start gap-2.5 rounded-xl bg-moss/8 p-3">
+              <BadgeCheck size={16} className="shrink-0 text-moss" />
+              <p className="text-xs leading-5 text-ink/70">
+                {feasibilityScore >= 80 
+                  ? "Route feasible. Driver rest buffer preserved."
+                  : "Some constraints need attention. Review recommended."}
+              </p>
+            </div>
+
+            <Button 
+              onClick={onNext} 
+              className="mt-5 h-11 w-full rounded-xl bg-ink font-bold text-paper hover:bg-ink/90"
+            >
+              Review trip <ArrowRight size={16} className="ml-2" />
+            </Button>
+
+            <p className="mt-3 text-center text-[10px] text-ink-muted/60">
+              {feasibilityScore}% feasible · {selectedActivities.length} activities
             </p>
-          </div>
-          <div className="mt-5 space-y-3 border-b border-ink/8 pb-5 text-xs">
-            <div className="flex justify-between"><span className="text-ink-muted">Trip base</span><strong>₹47,800</strong></div>
-            {addedStop && <div className="flex justify-between"><span className="text-ink-muted">Local stop</span><strong className="text-teal">+₹240</strong></div>}
-            {upgraded && <div className="flex justify-between"><span className="text-ink-muted">Room upgrade</span><strong className="text-teal">+₹1,200</strong></div>}
-          </div>
-          <div className="mt-5 flex items-start gap-2.5 rounded-xl bg-moss/8 p-3">
-            <BadgeCheck size={16} className="shrink-0 text-moss" />
-            <p className="text-xs leading-5 text-ink/70">Schedule feasible: driver rest buffer preserved.</p>
-          </div>
-          <Button onClick={onNext} className="mt-5 h-11 w-full rounded-xl bg-ink font-bold text-paper hover:bg-ink/90">
-            Review trip <ArrowRight size={16} className="ml-2" />
-          </Button>
-        </Card>
+          </Card>
+        </div>
       </div>
     </div>
   );
@@ -3122,7 +3777,7 @@ function TravelerView({
         setChatTyping={setChatTyping}
       />;
     case 2:
-      return <Customization upgraded={upgraded} setUpgraded={setUpgraded} addedStop={addedStop} tripTotal={tripTotal} onNext={() => setStep(3)} />;
+      return <EnhancedCustomization upgraded={upgraded} setUpgraded={setUpgraded} addedStop={addedStop} tripTotal={tripTotal} onNext={() => setStep(3)} />;
     case 3:
       return <Checkout 
         addedStop={addedStop} 
@@ -3149,14 +3804,14 @@ function TravelerView({
         vendors={vendors}
       />;
     case 6:
-    return <Complete 
-    resolved={resolved} 
-    resolutionKey={resolutionKey}
-    vendors={vendors}
-    destination={destination}
-    routePlan={routePlan}
-  />;
-  default:
+      return <Complete 
+        resolved={resolved} 
+        resolutionKey={resolutionKey}
+        vendors={vendors}
+        destination={destination}
+        routePlan={routePlan}
+      />;
+    default:
       return null;
   }
 }
