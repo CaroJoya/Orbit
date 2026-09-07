@@ -1,3 +1,4 @@
+// client/src/pages/Home.tsx
 /*
  * Atlas Editorial design reminder for this page:
  * This is a frontend-only product visualization. Treat the route as the protagonist,
@@ -68,6 +69,25 @@ import {
   User,
   UserPlus,
   Baby,
+  Clock,
+  CheckCheck,
+  Loader2,
+  Smartphone,
+  QrCode,
+  Zap as ZapIcon,
+  Workflow,
+  GitBranch,
+  GitCommit,
+  GitMerge,
+  AlertTriangle,
+  ThumbsUp,
+  ThumbsDown,
+  PhoneCall,
+  Video,
+  Paperclip,
+  Mic,
+  Smile,
+  MoreVertical,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -80,6 +100,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { RouteRadarMap, POI } from "@/components/RouteRadarMap";
 import { Logo } from "@/components/Logo";
@@ -112,9 +133,7 @@ const destinationImages: Record<string, string> = {
 
 function getDestinationImage(destination: string): string {
   const clean = destination.trim().toLowerCase();
-  // Try exact match
   if (destinationImages[clean]) return destinationImages[clean];
-  // Try partial match
   const match = Object.keys(destinationImages).find(
     (key) => clean.includes(key) || key.includes(clean)
   );
@@ -600,6 +619,688 @@ function SuggestedDestinationsSection({ onDestinationClick }: { onDestinationCli
 
 // ============== END NEW COMPONENTS ==============
 
+// =============================================================================
+// CHECKOUT TAB ENHANCEMENTS
+// =============================================================================
+
+interface VendorConfirmation {
+  id: string;
+  name: string;
+  type: 'hotel' | 'driver' | 'guide' | 'activity' | 'vendor';
+  icon: React.ElementType;
+  status: 'pending' | 'confirming' | 'confirmed' | 'declined';
+  responseTime?: string;
+  price?: number;
+}
+
+function VendorConfirmationList({ 
+  vendors, 
+  onConfirmAll, 
+  onConfirmVendor,
+  isConfirmingAll 
+}: { 
+  vendors: VendorConfirmation[];
+  onConfirmAll: () => void;
+  onConfirmVendor: (id: string) => void;
+  isConfirmingAll: boolean;
+}) {
+  const allConfirmed = vendors.every(v => v.status === 'confirmed');
+  const allPending = vendors.every(v => v.status === 'pending');
+  
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="field-label">Vendor Confirmations</p>
+        <Button
+          onClick={onConfirmAll}
+          disabled={isConfirmingAll || allConfirmed}
+          size="sm"
+          className={cn(
+            "h-8 rounded-lg text-xs font-bold",
+            allConfirmed ? "bg-moss text-white" : "bg-teal text-white hover:bg-teal-dark"
+          )}
+        >
+          {isConfirmingAll ? (
+            <><Loader2 size={14} className="mr-1.5 animate-spin" /> Confirming...</>
+          ) : allConfirmed ? (
+            <><Check size={14} className="mr-1.5" /> All Confirmed</>
+          ) : (
+            <>Confirm All</>
+          )}
+        </Button>
+      </div>
+      
+      <div className="space-y-2">
+        {vendors.map((vendor) => {
+          const Icon = vendor.icon;
+          const isConfirmed = vendor.status === 'confirmed';
+          const isPending = vendor.status === 'pending';
+          const isConfirming = vendor.status === 'confirming';
+          const isDeclined = vendor.status === 'declined';
+          
+          return (
+            <div 
+              key={vendor.id} 
+              className={cn(
+                "flex items-center gap-3 rounded-xl border px-4 py-3 transition-all duration-300",
+                isConfirmed ? "border-moss/20 bg-moss/5" : "border-ink/8 bg-paper-dark/50",
+                isConfirming && "border-amber/20 bg-amber/5"
+              )}
+            >
+              <div className={cn(
+                "flex h-8 w-8 items-center justify-center rounded-lg",
+                isConfirmed ? "bg-moss/10 text-moss" : "bg-ink/5 text-ink-muted"
+              )}>
+                <Icon size={15} />
+              </div>
+              
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-ink">{vendor.name}</p>
+                <p className="text-[10px] text-ink-muted capitalize">{vendor.type}</p>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                {vendor.price && (
+                  <span className="text-xs font-semibold text-ink">₹{vendor.price}</span>
+                )}
+                
+                {isConfirmed ? (
+                  <span className="flex items-center gap-1 text-xs font-bold text-moss">
+                    <CheckCircle2 size={14} /> Confirmed
+                  </span>
+                ) : isConfirming ? (
+                  <span className="flex items-center gap-1 text-xs font-bold text-amber">
+                    <Loader2 size={14} className="animate-spin" /> Confirming...
+                  </span>
+                ) : isDeclined ? (
+                  <span className="text-xs font-bold text-coral">Declined</span>
+                ) : (
+                  <Button
+                    onClick={() => onConfirmVendor(vendor.id)}
+                    size="sm"
+                    variant="outline"
+                    className="h-7 rounded-lg border-teal/30 px-3 text-xs font-bold text-teal hover:bg-teal/5"
+                  >
+                    Confirm
+                  </Button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      
+      {allConfirmed && (
+        <div className="rounded-xl bg-moss/10 p-3 text-center text-xs font-bold text-moss animate-fade-up">
+          <CheckCircle2 size={16} className="inline mr-2" />
+          All vendors confirmed! Your trip is ready.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TimingCompatibility({ vendors, arrivalTime = "17:30" }: { vendors: VendorConfirmation[]; arrivalTime?: string }) {
+  const allConfirmed = vendors.every(v => v.status === 'confirmed');
+  const checkInTime = "17:30";
+  const bufferTime = "45 min";
+  const driverRest = "2.5 hours";
+  
+  return (
+    <div className={cn(
+      "rounded-2xl border p-4 transition-all duration-500",
+      allConfirmed ? "border-teal/20 bg-teal/5" : "border-amber/20 bg-amber/5"
+    )}>
+      <p className="text-xs font-bold text-ink">Timing Compatibility</p>
+      
+      <div className="mt-3 space-y-2">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-ink-muted">Hotel Check-in</span>
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">{checkInTime}</span>
+            <span className={cn(
+              "text-xs font-bold",
+              allConfirmed ? "text-moss" : "text-amber"
+            )}>
+              {allConfirmed ? "✓ Achievable" : "⏳ Pending"}
+            </span>
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-ink-muted">Arrival Buffer</span>
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">{bufferTime}</span>
+            <span className="text-xs font-bold text-moss">✓ Preserved</span>
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-ink-muted">Driver Rest</span>
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">{driverRest}</span>
+            <span className="text-xs font-bold text-moss">✓ Protected</span>
+          </div>
+        </div>
+      </div>
+      
+      {allConfirmed && (
+        <div className="mt-3 flex items-center gap-2 rounded-lg bg-teal/10 px-3 py-2 text-xs text-teal animate-fade-up">
+          <Clock size={14} />
+          All timing checks passed. Route is feasible.
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// DIGITAL PASS ENHANCEMENTS - WhatsApp Chat Simulator
+// =============================================================================
+
+type ChatMessageType = {
+  id: string;
+  sender: 'user' | 'vendor';
+  text: string;
+  timestamp: string;
+  isDelivered?: boolean;
+  isSeen?: boolean;
+  isVoucher?: boolean;
+};
+
+type VendorChatState = {
+  vendorName: string;
+  vendorId: string;
+  vendorIcon: string;
+  isOnline: boolean;
+  lastSeen: string;
+  messages: ChatMessageType[];
+  isTyping: boolean;
+  confirmationStatus: 'pending' | 'confirmed' | 'declined';
+};
+
+const VENDOR_CHAT_RESPONSES: Record<string, (msg: string) => string> = {
+  default: (msg: string) => {
+    const lower = msg.toLowerCase();
+    if (lower.includes('hi') || lower.includes('hello') || lower.includes('hey')) {
+      return "Hello! 👋 How can I help you with your order?";
+    }
+    if (lower.includes('price') || lower.includes('cost') || lower.includes('₹') || lower.includes('rate')) {
+      return "Our fixed rate is ₹120 for the item. We maintain transparent pricing for all our customers. 🏷️";
+    }
+    if (lower.includes('time') || lower.includes('when') || lower.includes('arrival')) {
+      return "Your order will be ready in 15 minutes. We're preparing it fresh! ⏱️";
+    }
+    if (lower.includes('confirm') || lower.includes('yes') || lower.includes('ok') || lower.includes('add')) {
+      return "Great! ✅ I've confirmed your order. You'll receive a QR voucher shortly. See you soon!";
+    }
+    if (lower.includes('thank') || lower.includes('thanks')) {
+      return "You're welcome! 😊 It's our pleasure to serve you. Safe travels!";
+    }
+    if (lower.includes('whatsapp') || lower.includes('chat') || lower.includes('message')) {
+      return "You're chatting with us via WhatsApp through our privacy relay. Your phone number is hidden! 🔒";
+    }
+    return "Thanks for your message! I'm here to help with your order. Would you like to know more about our offerings?";
+  }
+};
+
+function WhatsAppChatSimulator({ 
+  vendorName = "Sharma Ji Samosa Hub",
+  vendorIcon = "🛍️",
+  onConfirm,
+  isConfirmed,
+}: { 
+  vendorName?: string;
+  vendorIcon?: string;
+  onConfirm?: () => void;
+  isConfirmed?: boolean;
+}) {
+  const [messages, setMessages] = useState<ChatMessageType[]>([
+    {
+      id: "1",
+      sender: 'vendor',
+      text: `👋 Welcome! This is ${vendorName}. How can I help you today?`,
+      timestamp: format(new Date(Date.now() - 180000), 'hh:mm a'),
+      isDelivered: true,
+      isSeen: true,
+    },
+    {
+      id: "2",
+      sender: 'vendor',
+      text: "We have a special fixed rate for you: ₹120. No hidden charges!",
+      timestamp: format(new Date(Date.now() - 120000), 'hh:mm a'),
+      isDelivered: true,
+      isSeen: true,
+    }
+  ]);
+  const [inputMessage, setInputMessage] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const [hasConfirmed, setHasConfirmed] = useState(isConfirmed || false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [showVoucher, setShowVoucher] = useState(false);
+  const [chatActive, setChatActive] = useState(true);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const getVendorResponse = (userMessage: string): string => {
+    const lower = userMessage.toLowerCase();
+    
+    if (lower.includes('hi') || lower.includes('hello') || lower.includes('hey')) {
+      return "Hello there! 👋 How can I assist you with your order today?";
+    }
+    if (lower.includes('price') || lower.includes('cost') || lower.includes('₹') || lower.includes('rate') || lower.includes('how much')) {
+      return "Our fixed price is ₹120 for this item. We maintain transparent rates for all our customers. Would you like to confirm your order? 🏷️";
+    }
+    if (lower.includes('time') || lower.includes('when') || lower.includes('arrival') || lower.includes('ready')) {
+      return "We'll have your order ready in 15 minutes. We're preparing it fresh! ⏱️";
+    }
+    if (lower.includes('confirm') || lower.includes('yes') || lower.includes('ok') || lower.includes('add') || lower.includes('order')) {
+      return "Excellent! ✅ Your order has been confirmed. I'll share a QR voucher with you shortly. We look forward to serving you!";
+    }
+    if (lower.includes('thank') || lower.includes('thanks') || lower.includes('thank you')) {
+      return "You're most welcome! 😊 It's our pleasure. Safe travels and enjoy your journey!";
+    }
+    if (lower.includes('voucher') || lower.includes('qr') || lower.includes('code')) {
+      return "Here's your QR voucher! 📱 Just show this at our shop for quick service. Tap the QR button below to see it.";
+    }
+    if (lower.includes('clean') || lower.includes('hygiene') || lower.includes('safety')) {
+      return "We maintain the highest hygiene standards! ⭐ 4.8★ rating for cleanliness. Our shop is regularly sanitized and all staff wear gloves. 🧤";
+    }
+    if (lower.includes('menu') || lower.includes('food') || lower.includes('eat') || lower.includes('snack')) {
+      return "We have a variety of freshly made snacks! 🌯 Our specialty is samosas, but we also have kachoris, jalebis, and refreshing chai. All at fixed, transparent prices!";
+    }
+    if (lower.includes('privacy') || lower.includes('phone') || lower.includes('number') || lower.includes('hidden')) {
+      return "Your privacy is protected! 🔒 I can see you as Customer #TRV-8029. Your real phone number is completely hidden. We love this system!";
+    }
+    if (lower.includes('bye') || lower.includes('goodbye')) {
+      return "Goodbye! 👋 It was a pleasure chatting with you. Safe travels and we hope to see you soon!";
+    }
+    
+    // Default response
+    return "Thanks for your message! I'm here to help. Would you like to know about our menu, pricing, or confirm an order? Just ask! 😊";
+  };
+
+  const sendMessage = () => {
+    const trimmed = inputMessage.trim();
+    if (!trimmed || !chatActive) return;
+
+    const userMsg: ChatMessageType = {
+      id: Date.now().toString(),
+      sender: 'user',
+      text: trimmed,
+      timestamp: format(new Date(), 'hh:mm a'),
+      isDelivered: true,
+      isSeen: false,
+    };
+
+    setMessages(prev => [...prev, userMsg]);
+    setInputMessage("");
+    setIsTyping(true);
+
+    // Simulate vendor typing and response
+    setTimeout(() => {
+      const responseText = getVendorResponse(trimmed);
+      const vendorMsg: ChatMessageType = {
+        id: (Date.now() + 1).toString(),
+        sender: 'vendor',
+        text: responseText,
+        timestamp: format(new Date(), 'hh:mm a'),
+        isDelivered: true,
+        isSeen: true,
+      };
+      
+      setMessages(prev => [...prev, vendorMsg]);
+      setIsTyping(false);
+
+      // Check if user is confirming
+      if (trimmed.toLowerCase().includes('confirm') || 
+          trimmed.toLowerCase().includes('yes') || 
+          trimmed.toLowerCase().includes('ok')) {
+        setHasConfirmed(true);
+        if (onConfirm) onConfirm();
+        // Show voucher after confirmation
+        setTimeout(() => setShowVoucher(true), 500);
+      }
+    }, 800 + Math.random() * 1000);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-105 bg-[#e9efe9] rounded-2xl overflow-hidden border border-ink/8">
+      {/* Chat Header */}
+      <div className="flex items-center gap-3 border-b border-ink/8 bg-paper px-4 py-3 shrink-0">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-saffron/15 text-2xl">
+          {vendorIcon}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-ink">{vendorName}</p>
+          <div className="flex items-center gap-1.5">
+            <span className={cn(
+              "h-2 w-2 rounded-full",
+              chatActive ? "bg-moss animate-pulse" : "bg-ink-muted"
+            )} />
+            <span className="text-[10px] text-ink-muted">
+              {chatActive ? "Online · Usually replies instantly" : "Offline"}
+            </span>
+          </div>
+        </div>
+        <button type="button" className="icon-button h-8 w-8" aria-label="More options">
+          <MoreVertical size={14} />
+        </button>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5">
+        {messages.map((msg) => (
+          <div key={msg.id} className={cn(
+            "flex",
+            msg.sender === 'user' ? "justify-end" : "justify-start"
+          )}>
+            <div className={cn(
+              "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-5 shadow-sm",
+              msg.sender === 'user' 
+                ? "bg-teal text-white rounded-br-sm" 
+                : "bg-white text-ink rounded-bl-sm"
+            )}>
+              {msg.text}
+            </div>
+          </div>
+        ))}
+        
+        {isTyping && (
+          <div className="flex justify-start">
+            <div className="bg-white rounded-2xl rounded-bl-sm px-4 py-3">
+              <div className="flex items-center gap-1">
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink/40 [animation-delay:-0.2s]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink/40 [animation-delay:-0.1s]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink/40" />
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* QR Voucher */}
+        {showVoucher && (
+          <div className="flex justify-start">
+            <div className="bg-white rounded-2xl rounded-bl-sm p-4 max-w-[85%] border border-teal/20 animate-fade-up">
+              <div className="flex items-center gap-3">
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-teal/10">
+                  <QrCode size={32} className="text-teal" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-ink">QR Voucher</p>
+                  <p className="text-[10px] text-ink-muted">Fixed rate · ₹120</p>
+                  <p className="text-[9px] text-teal font-semibold">✓ Verified</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Chat Input */}
+      <div className="border-t border-ink/8 bg-paper px-3 py-2.5 shrink-0">
+        <div className="flex items-center gap-2">
+          <button type="button" className="icon-button h-8 w-8 shrink-0" aria-label="Attachment">
+            <Paperclip size={14} />
+          </button>
+          <div className="flex-1 relative">
+            <input
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Message vendor..."
+              className="w-full rounded-xl border border-ink/10 bg-paper-dark px-4 py-2 text-sm text-ink outline-none focus:border-teal/30 focus:ring-2 focus:ring-teal/10"
+              disabled={!chatActive}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={sendMessage}
+            disabled={!inputMessage.trim() || !chatActive}
+            className={cn(
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors",
+              inputMessage.trim() && chatActive
+                ? "bg-teal text-white hover:bg-teal-dark"
+                : "bg-ink/5 text-ink-muted/40 cursor-not-allowed"
+            )}
+          >
+            <Send size={15} />
+          </button>
+        </div>
+        {chatActive && (
+          <div className="mt-1 flex items-center gap-3 px-1">
+            <span className="text-[9px] text-ink-muted/60 flex items-center gap-1">
+              <LockKeyhole size={10} className="text-teal" />
+              Privacy relay active
+            </span>
+            <span className="text-[9px] text-ink-muted/60">
+              {messages.filter(m => m.sender === 'vendor').length} vendor messages
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// RIPPLE ENGINE ENHANCEMENTS - Cascade Animation
+// =============================================================================
+
+type CascadeStep = {
+  id: string;
+  label: string;
+  icon: React.ElementType;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  description: string;
+  delay: number;
+};
+
+function CascadeAnimation({ 
+  isResolving, 
+  resolved,
+  onComplete,
+}: { 
+  isResolving: boolean;
+  resolved: boolean;
+  onComplete?: () => void;
+}) {
+  const [steps, setSteps] = useState<CascadeStep[]>([
+    { 
+      id: 'hotel', 
+      label: 'Hotel: Kesar Bagh Haveli', 
+      icon: Hotel, 
+      status: 'pending',
+      description: 'Updating check-in time',
+      delay: 0
+    },
+    { 
+      id: 'driver', 
+      label: 'Driver: Rajesh K.', 
+      icon: Car, 
+      status: 'pending',
+      description: 'Recalculating route',
+      delay: 800
+    },
+    { 
+      id: 'guide', 
+      label: 'Guide: Amber Fort', 
+      icon: Compass, 
+      status: 'pending',
+      description: 'Notifying schedule change',
+      delay: 1600
+    },
+    { 
+      id: 'vendor', 
+      label: 'Vendor: Sharma Ji', 
+      icon: Store, 
+      status: 'pending',
+      description: 'Updating order time',
+      delay: 2400
+    },
+    { 
+      id: 'traveler', 
+      label: 'Traveler: Aanya S.', 
+      icon: UserRound, 
+      status: 'pending',
+      description: 'Sending updated itinerary',
+      delay: 3200
+    },
+  ]);
+
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [completedCount, setCompletedCount] = useState(0);
+
+  useEffect(() => {
+    if (isResolving && !isProcessing && !resolved) {
+      startCascade();
+    }
+  }, [isResolving, isProcessing, resolved]);
+
+  const startCascade = () => {
+    setIsProcessing(true);
+    setProgress(0);
+    setCompletedCount(0);
+
+    const totalSteps = steps.length;
+    let completed = 0;
+
+    steps.forEach((step, index) => {
+      const delay = step.delay + 600;
+
+      setTimeout(() => {
+        setSteps(prev => prev.map((s, i) => 
+          i === index ? { ...s, status: 'processing' } : s
+        ));
+
+        // Simulate processing
+        setTimeout(() => {
+          const success = Math.random() > 0.1;
+          setSteps(prev => prev.map((s, i) => 
+            i === index ? { ...s, status: success ? 'completed' : 'failed' } : s
+          ));
+          
+          completed++;
+          setCompletedCount(completed);
+          setProgress((completed / totalSteps) * 100);
+
+          if (completed === totalSteps) {
+            setTimeout(() => {
+              setIsProcessing(false);
+              if (onComplete) onComplete();
+            }, 400);
+          }
+        }, 600 + Math.random() * 400);
+      }, delay);
+    });
+  };
+
+  const allCompleted = steps.every(s => s.status === 'completed');
+  const hasFailed = steps.some(s => s.status === 'failed');
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-bold text-ink">Cascade Update</p>
+        <span className="text-[10px] font-bold text-ink-muted">
+          {completedCount}/{steps.length} complete
+        </span>
+      </div>
+
+      <Progress value={progress} className="h-1.5" />
+
+      <div className="space-y-2">
+        {steps.map((step) => {
+          const Icon = step.icon;
+          const isCompleted = step.status === 'completed';
+          const isProcessing = step.status === 'processing';
+          const isFailed = step.status === 'failed';
+          const isPending = step.status === 'pending';
+
+          return (
+            <div 
+              key={step.id}
+              className={cn(
+                "flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-all duration-500",
+                isCompleted ? "border-moss/20 bg-moss/5" : "border-ink/8 bg-paper-dark/30",
+                isProcessing && "border-amber/20 bg-amber/5"
+              )}
+            >
+              <div className={cn(
+                "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-all duration-500",
+                isCompleted ? "bg-moss/10 text-moss" : "bg-ink/5 text-ink-muted",
+                isProcessing && "bg-amber/10 text-amber"
+              )}>
+                <Icon size={14} />
+              </div>
+              
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-ink">{step.label}</p>
+                <p className="text-[10px] text-ink-muted">{step.description}</p>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                {isCompleted && (
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-moss animate-fade-up">
+                    <CheckCircle2 size={13} /> Done
+                  </span>
+                )}
+                {isProcessing && (
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-amber">
+                    <Loader2 size={13} className="animate-spin" /> Processing
+                  </span>
+                )}
+                {isFailed && (
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-coral">
+                    <AlertTriangle size={13} /> Failed
+                  </span>
+                )}
+                {isPending && (
+                  <span className="text-[10px] text-ink-muted/50">Waiting</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {allCompleted && !isProcessing && (
+        <div className="rounded-xl bg-moss/10 p-3 text-center text-xs font-bold text-moss animate-fade-up">
+          <CheckCircle2 size={16} className="inline mr-2" />
+          All systems updated! Trip successfully adapted.
+        </div>
+      )}
+
+      {hasFailed && !isProcessing && (
+        <div className="rounded-xl bg-coral/10 p-3 text-center text-xs font-bold text-coral animate-fade-up">
+          <AlertTriangle size={16} className="inline mr-2" />
+          Some updates failed. Manual intervention may be needed.
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// INTAKE CANVAS COMPONENT
+// =============================================================================
+
 function IntakeCanvas({
   destination,
   setDestination,
@@ -684,10 +1385,7 @@ function IntakeCanvas({
 
   return (
     <div className="space-y-8 animate-fade-up">
-      {/* Travel Services Section */}
       <TravelServicesSection onServiceClick={(id) => toast.info(`${id} service opened`)} />
-      
-      {/* Suggested Destinations Section */}
       <SuggestedDestinationsSection onDestinationClick={onDestinationClick} />
       
       <div className="section-heading max-w-3xl"><MiniLabel tone="teal">01 / Intake Canvas</MiniLabel><h1>Build a trip that can <em>bend</em> without breaking.</h1><p>Tell Orbit how you want to move. The route, stays, local stops, and live operations will shape around you.</p></div>
@@ -840,7 +1538,6 @@ type ChatMessage = { id: string; role: "user" | "assistant"; text: string };
 function getPOIAIResponse(poi: POI, userMessage: string): string {
   const lowerMsg = userMessage.toLowerCase();
   
-  // Temple responses
   if (poi.type === 'temple') {
     if (lowerMsg.includes('time') || lowerMsg.includes('hour') || lowerMsg.includes('open')) {
       return `${poi.name} is open ${poi.hours || 'from early morning to evening'}. The detour takes about ${poi.detourTime}. Would you like to include this peaceful stop in your journey?`;
@@ -857,7 +1554,6 @@ function getPOIAIResponse(poi: POI, userMessage: string): string {
     return `🛕 ${poi.name} is a serene spiritual destination with a ${poi.rating}★ rating. The detour takes ${poi.detourTime} and entry is free. Many travelers find it a meaningful pause during their journey. Would you like to add it to your route?`;
   }
   
-  // Food responses
   if (poi.type === 'food') {
     if (lowerMsg.includes('time') || lowerMsg.includes('hour') || lowerMsg.includes('open')) {
       return `${poi.name} is open ${poi.hours || 'throughout the day'}. The detour takes about ${poi.detourTime}. Perfect timing for a meal break!`;
@@ -874,7 +1570,6 @@ function getPOIAIResponse(poi: POI, userMessage: string): string {
     return `🍽️ ${poi.name} is a popular food destination with a ${poi.rating}★ rating. Meals cost around ₹${poi.detourCost} per person. The detour takes ${poi.detourTime}. Would you like to add this stop?`;
   }
   
-  // Entertainment responses
   if (poi.type === 'entertainment') {
     if (lowerMsg.includes('time') || lowerMsg.includes('hour') || lowerMsg.includes('open')) {
       return `${poi.name} is open ${poi.hours || 'until late'}. The detour takes about ${poi.detourTime}. A fun break for the whole family!`;
@@ -891,7 +1586,6 @@ function getPOIAIResponse(poi: POI, userMessage: string): string {
     return `🎮 ${poi.name} offers great entertainment with a ${poi.rating}★ rating. Tickets start at ₹${poi.detourCost} per person. The detour takes ${poi.detourTime}. Would you like to include it?`;
   }
   
-  // Shopping responses
   if (poi.type === 'shopping') {
     if (lowerMsg.includes('time') || lowerMsg.includes('hour') || lowerMsg.includes('open')) {
       return `${poi.name} is open ${poi.hours || 'throughout the day'}. The detour takes about ${poi.detourTime} - perfect for some shopping!`;
@@ -912,7 +1606,7 @@ function getPOIAIResponse(poi: POI, userMessage: string): string {
 }
 
 // =============================================================================
-// POI Chat Panel Component - Replaces the drawer with a panel in the right column
+// POI Chat Panel Component
 // =============================================================================
 
 function POIChatPanel({ 
@@ -943,7 +1637,6 @@ function POIChatPanel({
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between border-b border-ink/10 pb-3">
         <div>
           <MiniLabel tone="teal">Route waypoint · AI Assistant</MiniLabel>
@@ -957,7 +1650,6 @@ function POIChatPanel({
         </button>
       </div>
       
-      {/* POI Info */}
       <div className="flex items-center justify-between border-b border-ink/8 pb-3">
         <span className="flex items-center gap-1.5 text-xs font-bold text-ink">
           <Star size={14} fill="currentColor" className="text-saffron" /> 
@@ -968,7 +1660,6 @@ function POIChatPanel({
         </span>
       </div>
       
-      {/* Chat messages */}
       <div className="max-h-56 overflow-y-auto space-y-3 pr-1">
         {messages.map((message) => (
           <div key={message.id} className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}>
@@ -1001,7 +1692,6 @@ function POIChatPanel({
         )}
       </div>
       
-      {/* Input and Add button */}
       <div className="border-t border-ink/10 pt-4">
         <div className="field-shell mb-3">
           <input 
@@ -1044,7 +1734,7 @@ function POIChatPanel({
 }
 
 // =============================================================================
-// RouteRadar Component - Updated with POI support in the contextual assistant
+// ROUTE RADAR COMPONENT
 // =============================================================================
 
 function RouteRadar({ 
@@ -1084,13 +1774,11 @@ function RouteRadar({
 }) {
   const [activeDay, setActiveDay] = useState(1);
   
-  // Handle POI click
   const handlePOIClick = (poi: POI) => {
     console.log("POI clicked in RouteRadar:", poi.name);
     setSelectedPOI(poi);
     setPoiChatOpen(true);
     
-    // Initialize chat with welcome message
     const welcomeMessage: ChatMessage = {
       id: `assistant-${Date.now()}`,
       role: "assistant",
@@ -1099,11 +1787,9 @@ function RouteRadar({
     setChatMessages([welcomeMessage]);
   };
   
-  // Handle sending message in POI chat
   const handleSendPOIMessage = (msg: string) => {
     if (!selectedPOI) return;
     
-    // Add user message
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
       role: "user",
@@ -1113,7 +1799,6 @@ function RouteRadar({
     const updatedMessages = [...chatMessages, userMessage];
     setChatMessages(updatedMessages);
     
-    // Simulate AI response
     setChatTyping(true);
     setTimeout(() => {
       const response = getPOIAIResponse(selectedPOI, msg);
@@ -1127,7 +1812,6 @@ function RouteRadar({
     }, 800 + Math.random() * 600);
   };
   
-  // Handle adding POI to route
   const handleAddPOI = (poi: POI) => {
     if (addedPOIs.some(p => p.id === poi.id)) return;
     
@@ -1206,7 +1890,6 @@ function RouteRadar({
         </Card>
         
         <div className="space-y-5">
-          {/* Contextual Assistant - Now shows POI chat when open, otherwise default state */}
           {poiChatOpen && selectedPOI ? (
             <Card className="border-teal/12 bg-teal/5 p-5">
               <POIChatPanel
@@ -1249,7 +1932,6 @@ function RouteRadar({
             </Card>
           )}
           
-          {/* Daily timeline - stays below */}
           <Card className="p-5">
             <div className="flex items-center justify-between">
               <div>
@@ -1262,7 +1944,6 @@ function RouteRadar({
             </div>
             
             <div className="mt-6 space-y-0">
-              {/* Start */}
               <div className="timeline-row">
                 <div className="timeline-icon bg-teal/10 text-teal">
                   <HomeIcon size={15} />
@@ -1277,7 +1958,6 @@ function RouteRadar({
                 <div className="timeline-connector" />
               </div>
               
-              {/* POI stops */}
               {addedPOIs.map((poi, index) => (
                 <div key={poi.id} className="timeline-row">
                   <div className="timeline-icon bg-saffron/12 text-saffron">
@@ -1298,7 +1978,6 @@ function RouteRadar({
                 </div>
               ))}
               
-              {/* Destination */}
               <div className="timeline-row">
                 <div className="timeline-icon bg-saffron/12 text-saffron">
                   <Flag size={15} />
@@ -1333,11 +2012,13 @@ function RouteRadar({
   );
 }
 
-// ADDED: More customization options for the Customize tab
+// =============================================================================
+// CUSTOMIZE COMPONENT
+// =============================================================================
+
 function Customization({ upgraded, setUpgraded, addedStop, tripTotal, onNext }: { upgraded: boolean; setUpgraded: (value: boolean) => void; addedStop: boolean; tripTotal: number; onNext: () => void }) {
   const grandTotal = tripTotal + (upgraded ? 1200 : 0);
   
-  // Expanded options with more choices
   const options = [
     { 
       type: "Heritage stay", 
@@ -1378,7 +2059,6 @@ function Customization({ upgraded, setUpgraded, addedStop, tripTotal, onNext }: 
         { name: "Self-drive", price: "₹12,000" },
       ]
     },
-    // ADDED: More options
     { 
       type: "Meal Plan", 
       title: "Local food experiences", 
@@ -1420,7 +2100,6 @@ function Customization({ upgraded, setUpgraded, addedStop, tripTotal, onNext }: 
     },
   ];
   
-  // State for selected alternatives
   const [selectedOptions, setSelectedOptions] = useState<Record<string, number>>({});
   
   const handleAlternativeSelect = (optionIndex: number, altIndex: number) => {
@@ -1460,7 +2139,6 @@ function Customization({ upgraded, setUpgraded, addedStop, tripTotal, onNext }: 
                   )}
                 </div>
                 
-                {/* Alternatives dropdown */}
                 <div className="mt-3 border-t border-ink/8 pt-3">
                   <button 
                     type="button" 
@@ -1522,7 +2200,29 @@ function Customization({ upgraded, setUpgraded, addedStop, tripTotal, onNext }: 
   );
 }
 
-function Checkout({ addedStop, upgraded, onNext }: { addedStop: boolean; upgraded: boolean; onNext: () => void }) {
+// =============================================================================
+// CHECKOUT COMPONENT - ENHANCED
+// =============================================================================
+
+function Checkout({ 
+  addedStop, 
+  upgraded, 
+  onNext,
+  vendors,
+  onConfirmVendor,
+  onConfirmAll,
+  isConfirmingAll,
+  arrivalTime
+}: { 
+  addedStop: boolean; 
+  upgraded: boolean; 
+  onNext: () => void;
+  vendors: VendorConfirmation[];
+  onConfirmVendor: (id: string) => void;
+  onConfirmAll: () => void;
+  isConfirmingAll: boolean;
+  arrivalTime?: string;
+}) {
   const checks = ["Travel distance within daily limit", "Activity timing compatible with route", "Hotel check-in time achievable", "Driver rest buffer preserved", "Vendor availability confirmed"];
   const hotelsPrice = upgraded ? 14200 : 13000;
   const transportPrice = 18400;
@@ -1530,25 +2230,630 @@ function Checkout({ addedStop, upgraded, onNext }: { addedStop: boolean; upgrade
   const servicePrice = 4000;
   const localStopPrice = addedStop ? 240 : 0;
   const grandTotal = hotelsPrice + transportPrice + activitiesPrice + servicePrice + localStopPrice;
-  return <div className="space-y-8 animate-fade-up"><div className="section-heading"><MiniLabel tone="teal">04 / Single Checkout</MiniLabel><h1>Everything aligned. <em>One calm checkout.</em></h1><p>A single view of every commitment before the route becomes real.</p></div><div className="grid gap-6 xl:grid-cols-[1fr_380px]"><Card className="p-6"><div className="flex items-center justify-between border-b border-ink/8 pb-5"><div><p className="eyebrow text-ink-muted">Feasibility check</p><h2 className="mt-2 font-display text-2xl font-semibold tracking-tighter">The route is holding.</h2></div><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-moss/10 text-moss"><CheckCircle2 size={23} /></div></div><div className="mt-6 space-y-3">{checks.map((check, index) => <div key={check} className="flex items-center gap-3 rounded-xl bg-paper-dark px-4 py-3"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-moss/12 text-moss"><Check size={13} /></span><span className="text-sm text-ink/78">{check}</span><span className="ml-auto text-[10px] font-bold uppercase tracking-[0.12em] text-moss">Passed</span></div>)}</div><div className="mt-8 rounded-2xl border border-saffron/20 bg-saffron/8 p-4"><div className="flex items-center gap-2"><Sparkles size={16} className="text-saffron" /><span className="text-xs font-bold text-ink">Small detail, big difference</span></div><p className="mt-2 text-sm leading-6 text-ink/72">Your local stop is locked to the route buffer. If the road changes, Orbit will recalculate downstream plans—not leave you with a stale PDF.</p></div></Card><Card className="h-fit p-6"><div className="flex items-center justify-between"><p className="eyebrow text-ink-muted">Trip ledger</p><span className="flex items-center gap-1.5 text-[11px] font-bold text-moss"><LockKeyhole size={13} /> Secure demo</span></div><div className="mt-5 space-y-4 text-sm"><div className="flex justify-between"><span className="text-ink-muted">Hotels · 2 nights</span><strong>₹{hotelsPrice.toLocaleString("en-IN")}</strong></div><div className="flex justify-between"><span className="text-ink-muted">Transport · 3 days</span><strong>₹{transportPrice.toLocaleString("en-IN")}</strong></div><div className="flex justify-between"><span className="text-ink-muted">Activities & guide</span><strong>₹{activitiesPrice.toLocaleString("en-IN")}</strong></div>{addedStop && <div className="flex justify-between"><span className="text-ink-muted">Local stop voucher</span><strong>₹{localStopPrice.toLocaleString("en-IN")}</strong></div>}<div className="flex justify-between"><span className="text-ink-muted">Orbit service</span><strong>₹{servicePrice.toLocaleString("en-IN")}</strong></div></div><div className="my-5 border-t border-ink/8" /><div className="flex items-end justify-between"><span className="text-sm font-bold text-ink">Trip total</span><span className="font-display text-3xl font-semibold tracking-tighter text-ink">₹{grandTotal.toLocaleString("en-IN")}</span></div><Button onClick={onNext} className="mt-6 h-12 w-full rounded-xl bg-teal font-bold text-white hover:bg-teal-dark"><CreditCard size={16} className="mr-2" /> Confirm visual booking</Button><p className="mt-3 text-center text-[11px] leading-5 text-ink-muted">Demo interaction only · no payment is processed</p></Card></div></div>;
+  
+  return (
+    <div className="space-y-8 animate-fade-up">
+      <div className="section-heading">
+        <MiniLabel tone="teal">04 / Single Checkout</MiniLabel>
+        <h1>Everything aligned. <em>One calm checkout.</em></h1>
+        <p>A single view of every commitment before the route becomes real.</p>
+      </div>
+      
+      <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
+        <Card className="p-6">
+          <div className="flex items-center justify-between border-b border-ink/8 pb-5">
+            <div>
+              <p className="eyebrow text-ink-muted">Feasibility check</p>
+              <h2 className="mt-2 font-display text-2xl font-semibold tracking-tighter">The route is holding.</h2>
+            </div>
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-moss/10 text-moss">
+              <CheckCircle2 size={23} />
+            </div>
+          </div>
+          
+          <div className="mt-6 space-y-3">
+            {checks.map((check, index) => (
+              <div key={check} className="flex items-center gap-3 rounded-xl bg-paper-dark px-4 py-3">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-moss/12 text-moss">
+                  <Check size={13} />
+                </span>
+                <span className="text-sm text-ink/78">{check}</span>
+                <span className="ml-auto text-[10px] font-bold uppercase tracking-[0.12em] text-moss">Passed</span>
+              </div>
+            ))}
+          </div>
+          
+          {/* Vendor Confirmation Section */}
+          <div className="mt-6 pt-6 border-t border-ink/8">
+            <VendorConfirmationList 
+              vendors={vendors}
+              onConfirmAll={onConfirmAll}
+              onConfirmVendor={onConfirmVendor}
+              isConfirmingAll={isConfirmingAll}
+            />
+          </div>
+          
+          {/* Timing Compatibility */}
+          <div className="mt-6">
+            <TimingCompatibility vendors={vendors} arrivalTime={arrivalTime || "17:30"} />
+          </div>
+          
+          <div className="mt-8 rounded-2xl border border-saffron/20 bg-saffron/8 p-4">
+            <div className="flex items-center gap-2">
+              <Sparkles size={16} className="text-saffron" />
+              <span className="text-xs font-bold text-ink">Small detail, big difference</span>
+            </div>
+            <p className="mt-2 text-sm leading-6 text-ink/72">
+              Your local stop is locked to the route buffer. If the road changes, Orbit will recalculate downstream plans—not leave you with a stale PDF.
+            </p>
+          </div>
+        </Card>
+        
+        <Card className="h-fit p-6">
+          <div className="flex items-center justify-between">
+            <p className="eyebrow text-ink-muted">Trip ledger</p>
+            <span className="flex items-center gap-1.5 text-[11px] font-bold text-moss">
+              <LockKeyhole size={13} /> Secure demo
+            </span>
+          </div>
+          
+          <div className="mt-5 space-y-4 text-sm">
+            <div className="flex justify-between">
+              <span className="text-ink-muted">Hotels · 2 nights</span>
+              <strong>₹{hotelsPrice.toLocaleString("en-IN")}</strong>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-ink-muted">Transport · 3 days</span>
+              <strong>₹{transportPrice.toLocaleString("en-IN")}</strong>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-ink-muted">Activities & guide</span>
+              <strong>₹{activitiesPrice.toLocaleString("en-IN")}</strong>
+            </div>
+            {addedStop && (
+              <div className="flex justify-between">
+                <span className="text-ink-muted">Local stop voucher</span>
+                <strong>₹{localStopPrice.toLocaleString("en-IN")}</strong>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span className="text-ink-muted">Orbit service</span>
+              <strong>₹{servicePrice.toLocaleString("en-IN")}</strong>
+            </div>
+          </div>
+          
+          <div className="my-5 border-t border-ink/8" />
+          
+          <div className="flex items-end justify-between">
+            <span className="text-sm font-bold text-ink">Trip total</span>
+            <span className="font-display text-3xl font-semibold tracking-tighter text-ink">
+              ₹{grandTotal.toLocaleString("en-IN")}
+            </span>
+          </div>
+          
+          <Button 
+            onClick={onNext} 
+            className="mt-6 h-12 w-full rounded-xl bg-teal font-bold text-white hover:bg-teal-dark"
+          >
+            <CreditCard size={16} className="mr-2" /> 
+            Confirm visual booking
+          </Button>
+          
+          <p className="mt-3 text-center text-[11px] leading-5 text-ink-muted">
+            Demo interaction only · no payment is processed
+          </p>
+        </Card>
+      </div>
+    </div>
+  );
 }
 
 function QrBlock() {
   return <div className="qr-block" aria-label="Decorative QR voucher"><div className="qr-grid">{Array.from({ length: 81 }).map((_, index) => <span key={index} className={cn("qr-cell", [0, 1, 2, 3, 9, 11, 18, 19, 20, 27, 29, 36, 37, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 72, 74, 76, 78, 80].includes(index) && "qr-fill")} />)}</div></div>;
 }
 
-function DigitalPass({ destination, onAdapt, vendorConfirmed }: { destination: string; onAdapt: () => void; vendorConfirmed: boolean }) {
-  return <div className="space-y-8 animate-fade-up"><div className="section-heading flex flex-col justify-between gap-5 md:flex-row md:items-end"><div><MiniLabel tone="teal">05 / Live Digital Pass</MiniLabel><h1>Your trip, <em>held together.</em></h1><p>Offline-ready details, privacy-safe local chat, and one button for the unexpected.</p></div><StatusChip tone={vendorConfirmed ? "green" : "teal"}>{vendorConfirmed ? "Vendor confirmed" : "Trip live"}</StatusChip></div><div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]"><Card className="pass-card"><div className="flex items-start justify-between"><div><div className="flex items-center gap-2"><Logo variant="tiny" className="opacity-80" /><span className="eyebrow text-paper/55">Orbit pass</span></div><h2 className="mt-5 font-display text-4xl font-semibold leading-none tracking-tighter">{destination}, with room<br />for <em className="text-saffron-light">wonder.</em></h2></div><span className="rounded-full border border-paper/15 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.13em] text-paper/58">TRP · 8029</span></div><div className="mt-12 grid grid-cols-2 gap-4 border-t border-paper/15 pt-5 sm:grid-cols-4"><div><p className="eyebrow text-paper/42">Traveler</p><p className="mt-1 text-sm font-semibold">Aanya Sharma</p></div><div><p className="eyebrow text-paper/42">Dates</p><p className="mt-1 text-sm font-semibold">12–14 Feb</p></div><div><p className="eyebrow text-paper/42">Pickup</p><p className="mt-1 text-sm font-semibold">Home</p></div><div><p className="eyebrow text-paper/42">Status</p><p className="mt-1 text-sm font-semibold text-teal-light">Live</p></div></div><div className="mt-7 flex flex-col gap-3 sm:flex-row"><button type="button" onClick={() => toast.success("Driver tracking opened · Rajesh is 12 minutes ahead")} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-paper/10 px-4 py-3 text-xs font-bold text-paper hover:bg-paper/15"><Navigation size={15} /> Track driver</button><button type="button" onClick={() => toast.success("Privacy relay chat is ready for the operator handoff")} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-paper/10 px-4 py-3 text-xs font-bold text-paper hover:bg-paper/15"><MessageCircle size={15} /> Privacy chat</button></div></Card><div className="space-y-5"><Card className="p-5"><div className="flex items-center justify-between"><div><MiniLabel>Today · Day 1</MiniLabel><p className="mt-2 text-sm font-bold text-ink">Your travel drawer</p></div><QrBlock /></div><div className="mt-5 grid grid-cols-2 gap-3"><button type="button" onClick={() => toast.success("QR voucher opened")} className="pass-item text-left"><Store size={15} className="text-saffron" /><div><strong>Local stop</strong><span>QR voucher · Fixed rate</span></div><ArrowRight size={14} className="ml-auto text-ink-muted" /></button><div className="pass-item"><Hotel size={15} className="text-teal" /><div><strong>Hotel check-in</strong><span>17:30 · Pushkar</span></div></div><div className="pass-item"><Phone size={15} className="text-teal" /><div><strong>Driver contact</strong><span>Rajesh · masked</span></div></div><div className="pass-item"><FileCheck2 size={15} className="text-moss" /><div><strong>Offline ready</strong><span>All details saved</span></div></div></div></Card><button type="button" onClick={onAdapt} className="adapt-button"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber text-ink"><CloudRain size={19} /></span><span className="flex-1 text-left"><MiniLabel tone="amber">Weather watch</MiniLabel><strong className="mt-1 block text-sm text-ink">Adapt My Day</strong><small className="mt-1 block text-xs text-ink-muted">Rain may affect your outdoor trek at 2:00 PM.</small></span><ArrowRight size={17} className="text-ink-muted" /></button></div></div></div>;
+// =============================================================================
+// DIGITAL PASS COMPONENT - ENHANCED
+// =============================================================================
+
+function DigitalPass({ 
+  destination, 
+  onAdapt, 
+  vendorConfirmed,
+  vendors,
+  onConfirmVendor
+}: { 
+  destination: string; 
+  onAdapt: () => void; 
+  vendorConfirmed: boolean;
+  vendors: VendorConfirmation[];
+  onConfirmVendor: (id: string) => void;
+}) {
+  const [showWhatsApp, setShowWhatsApp] = useState(false);
+  const [vendorChatConfirmed, setVendorChatConfirmed] = useState(false);
+  
+  const allConfirmed = vendors.every(v => v.status === 'confirmed');
+  const pendingVendors = vendors.filter(v => v.status === 'pending');
+  const confirmedVendors = vendors.filter(v => v.status === 'confirmed');
+  
+  return (
+    <div className="space-y-8 animate-fade-up">
+      <div className="section-heading flex flex-col justify-between gap-5 md:flex-row md:items-end">
+        <div>
+          <MiniLabel tone="teal">05 / Live Digital Pass</MiniLabel>
+          <h1>Your trip, <em>held together.</em></h1>
+          <p>Offline-ready details, privacy-safe local chat, and one button for the unexpected.</p>
+        </div>
+        <StatusChip tone={allConfirmed ? "green" : "teal"}>
+          {allConfirmed ? "All vendors confirmed" : `${pendingVendors.length} vendor${pendingVendors.length > 1 ? 's' : ''} pending`}
+        </StatusChip>
+      </div>
+      
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <Card className="pass-card">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <Logo variant="tiny" className="opacity-80" />
+                <span className="eyebrow text-paper/55">Orbit pass</span>
+              </div>
+              <h2 className="mt-5 font-display text-4xl font-semibold leading-none tracking-tighter">
+                {destination}, with room<br />for <em className="text-saffron-light">wonder.</em>
+              </h2>
+            </div>
+            <span className="rounded-full border border-paper/15 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.13em] text-paper/58">
+              TRP · 8029
+            </span>
+          </div>
+          
+          <div className="mt-12 grid grid-cols-2 gap-4 border-t border-paper/15 pt-5 sm:grid-cols-4">
+            <div>
+              <p className="eyebrow text-paper/42">Traveler</p>
+              <p className="mt-1 text-sm font-semibold">Aanya Sharma</p>
+            </div>
+            <div>
+              <p className="eyebrow text-paper/42">Dates</p>
+              <p className="mt-1 text-sm font-semibold">12–14 Feb</p>
+            </div>
+            <div>
+              <p className="eyebrow text-paper/42">Pickup</p>
+              <p className="mt-1 text-sm font-semibold">Home</p>
+            </div>
+            <div>
+              <p className="eyebrow text-paper/42">Status</p>
+              <p className="mt-1 text-sm font-semibold text-teal-light">Live</p>
+            </div>
+          </div>
+          
+          {/* Vendor Status Grid */}
+          <div className="mt-6 border-t border-paper/15 pt-5">
+            <p className="eyebrow text-paper/42">Vendor Status</p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {vendors.map((vendor) => {
+                const Icon = vendor.icon;
+                const isConfirmed = vendor.status === 'confirmed';
+                return (
+                  <div 
+                    key={vendor.id}
+                    className={cn(
+                      "flex items-center gap-2 rounded-lg border border-paper/15 px-3 py-2",
+                      isConfirmed ? "border-moss/30 bg-moss/10" : "border-paper/10 bg-paper/5"
+                    )}
+                  >
+                    <Icon size={13} className={isConfirmed ? "text-moss" : "text-paper/40"} />
+                    <span className="flex-1 text-[10px] font-medium text-paper/75">{vendor.name}</span>
+                    <span className={cn(
+                      "text-[8px] font-bold uppercase",
+                      isConfirmed ? "text-moss" : "text-amber"
+                    )}>
+                      {isConfirmed ? "✓ Confirmed" : "Pending"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          
+          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+            <button 
+              type="button" 
+              onClick={() => toast.success("Driver tracking opened · Rajesh is 12 minutes ahead")} 
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-paper/10 px-4 py-3 text-xs font-bold text-paper hover:bg-paper/15"
+            >
+              <Navigation size={15} /> Track driver
+            </button>
+            <button 
+              type="button" 
+              onClick={() => {
+                setShowWhatsApp(!showWhatsApp);
+                if (!showWhatsApp) toast.success("Privacy relay chat opened with vendor");
+              }} 
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-paper/10 px-4 py-3 text-xs font-bold text-paper hover:bg-paper/15"
+            >
+              <MessageCircle size={15} /> {showWhatsApp ? "Close chat" : "Privacy chat"}
+            </button>
+          </div>
+        </Card>
+        
+        <div className="space-y-5">
+          <Card className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <MiniLabel>Today · Day 1</MiniLabel>
+                <p className="mt-2 text-sm font-bold text-ink">Your travel drawer</p>
+              </div>
+              <QrBlock />
+            </div>
+            
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button type="button" onClick={() => toast.success("QR voucher opened")} className="pass-item text-left">
+                <Store size={15} className="text-saffron" />
+                <div><strong>Local stop</strong><span>QR voucher · Fixed rate</span></div>
+                <ArrowRight size={14} className="ml-auto text-ink-muted" />
+              </button>
+              <div className="pass-item">
+                <Hotel size={15} className="text-teal" />
+                <div><strong>Hotel check-in</strong><span>17:30 · Pushkar</span></div>
+              </div>
+              <div className="pass-item">
+                <Phone size={15} className="text-teal" />
+                <div><strong>Driver contact</strong><span>Rajesh · masked</span></div>
+              </div>
+              <div className="pass-item">
+                <FileCheck2 size={15} className="text-moss" />
+                <div><strong>Offline ready</strong><span>All details saved</span></div>
+              </div>
+            </div>
+          </Card>
+          
+          {/* WhatsApp Chat */}
+          {showWhatsApp && (
+            <Card className="p-3 border-teal/20 animate-fade-up">
+              <WhatsAppChatSimulator 
+                vendorName="Sharma Ji Samosa Hub"
+                vendorIcon="🛍️"
+                onConfirm={() => {
+                  setVendorChatConfirmed(true);
+                  // Find the vendor and confirm them
+                  const vendor = vendors.find(v => v.type === 'vendor');
+                  if (vendor) onConfirmVendor(vendor.id);
+                }}
+                isConfirmed={vendorChatConfirmed}
+              />
+            </Card>
+          )}
+          
+          <button 
+            type="button" 
+            onClick={onAdapt} 
+            className="adapt-button"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber text-ink">
+              <CloudRain size={19} />
+            </span>
+            <span className="flex-1 text-left">
+              <MiniLabel tone="amber">Weather watch</MiniLabel>
+              <strong className="mt-1 block text-sm text-ink">Adapt My Day</strong>
+              <small className="mt-1 block text-xs text-ink-muted">Rain may affect your outdoor trek at 2:00 PM.</small>
+            </span>
+            <ArrowRight size={17} className="text-ink-muted" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function RippleOptions({ onResolve, resolved }: { onResolve: (key: string) => void; resolved: boolean }) {
+// =============================================================================
+// RIPPLE ENGINE COMPONENT - ENHANCED
+// =============================================================================
+
+function RippleOptions({ 
+  onResolve, 
+  resolved, 
+  isResolving, 
+  vendors 
+}: { 
+  onResolve: (key: string) => void; 
+  resolved: boolean;
+  isResolving: boolean;
+  vendors: VendorConfirmation[];
+}) {
   const [selectedKey, setSelectedKey] = useState("A");
-  return <div className="space-y-8 animate-fade-up"><div className="section-heading"><MiniLabel tone="amber">06 / Ripple Engine</MiniLabel><h1>The plan changed. <em>The trip doesn't have to.</em></h1><p>Orbit checks time, distance, preferences, vendor availability, and cost—then gives the operator a clear choice.</p></div><div className="grid gap-6 xl:grid-cols-[0.7fr_1.3fr]"><Card className="border-amber/22 bg-amber/7 p-6"><div className="flex items-start gap-4"><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber text-ink"><CloudRain size={22} /></div><div><MiniLabel tone="amber">Conflict detected</MiniLabel><h2 className="mt-2 font-display text-2xl font-semibold leading-tight tracking-tighter text-ink">Heavy rain at 2:00 PM</h2><p className="mt-3 text-sm leading-6 text-ink/70">Outdoor trek is no longer safe. Three downstream bookings are affected.</p></div></div><div className="mt-8 space-y-3 border-t border-amber/18 pt-5 text-xs"><div className="flex justify-between"><span className="text-ink-muted">Affected day</span><strong>Day 2 · 12:30–16:00</strong></div><div className="flex justify-between"><span className="text-ink-muted">Traveler preference</span><strong>Culture · Food</strong></div><div className="flex justify-between"><span className="text-ink-muted">Operators impacted</span><strong>4 vendors</strong></div></div><div className="mt-6 flex items-center gap-2 text-xs font-bold text-amber-dark"><Activity size={15} /> Ripple analysis ready</div></Card><Card className="p-6"><div className="flex items-center justify-between border-b border-ink/8 pb-5"><div><MiniLabel>Resolution paths</MiniLabel><p className="mt-2 text-sm font-bold text-ink">Choose how the route should bend.</p></div><span className="rounded-full bg-teal/10 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-teal">3 options</span></div><div className="mt-5 space-y-3">{[{ key: "A", title: "Swap for Indoor Art Gallery", copy: "Keep the day intact. Fits Aanya's culture preference.", meta: "No timing change", price: "₹0 delta", selected: true }, { key: "B", title: "Reschedule trek to Day 3", copy: "Move the outdoor activity after the Pushkar stay.", meta: "+45 min on Day 3", price: "+₹400", selected: false }, { key: "C", title: "Issue instant refund credit", copy: "Cancel the trek and preserve the rest of the route.", meta: "Vendor credit issued", price: "−₹1,800", selected: false }].map((option) => <button type="button" key={option.key} onClick={() => !resolved && setSelectedKey(option.key)} className={cn("ripple-option w-full text-left", selectedKey === option.key && !resolved && "ripple-option-active", resolved && option.key === "A" && "ripple-option-resolved")}><div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold", selectedKey === option.key ? "bg-teal text-white" : "bg-ink/7 text-ink-muted")}>{option.key}</div><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><div><strong className="text-sm text-ink">{option.title}</strong><p className="mt-1 text-xs leading-5 text-ink-muted">{option.copy}</p></div>{selectedKey === option.key && !resolved && <span className="rounded-full bg-teal/10 px-2 py-1 text-[10px] font-bold text-teal">Recommended</span>}{resolved && option.key === "A" && <span className="rounded-full bg-moss/10 px-2 py-1 text-[10px] font-bold text-moss">Applied</span>}</div><div className="mt-3 flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-ink-muted"><span>{option.meta}</span><span className={option.price.startsWith("−") ? "text-moss" : option.price.startsWith("+") ? "text-amber-dark" : "text-teal"}>{option.price}</span></div></div></button>)}</div><Button onClick={() => onResolve(selectedKey)} disabled={resolved} className={cn("mt-5 h-11 w-full rounded-xl font-bold", resolved ? "bg-moss text-white hover:bg-moss" : "bg-ink text-paper hover:bg-ink/90")}>{resolved ? <><Check size={16} className="mr-2" /> Ripple resolved across trip</> : <><Zap size={16} className="mr-2 text-saffron-light" /> Resolve with Option {selectedKey}</>}</Button></Card></div></div>;
+  const [showCascade, setShowCascade] = useState(false);
+  const [cascadeComplete, setCascadeComplete] = useState(false);
+  
+  const options = [
+    { 
+      key: "A", 
+      title: "Swap for Indoor Art Gallery", 
+      copy: "Keep the day intact. Fits Aanya's culture preference.",
+      meta: "No timing change", 
+      price: "₹0 delta", 
+      selected: true,
+      description: "Swap outdoor trek for indoor gallery experience"
+    },
+    { 
+      key: "B", 
+      title: "Reschedule trek to Day 3", 
+      copy: "Move the outdoor activity after the Pushkar stay.",
+      meta: "+45 min on Day 3", 
+      price: "+₹400", 
+      selected: false,
+      description: "Move outdoor trek to Day 3"
+    },
+    { 
+      key: "C", 
+      title: "Issue instant refund credit", 
+      copy: "Cancel the trek and preserve the rest of the route.",
+      meta: "Vendor credit issued", 
+      price: "−₹1,800", 
+      selected: false,
+      description: "Cancel trek and issue credit"
+    }
+  ];
+
+  const handleResolve = () => {
+    setShowCascade(true);
+    // The cascade will complete and call onResolve via the onComplete callback
+  };
+
+  const handleCascadeComplete = () => {
+    setCascadeComplete(true);
+    onResolve(selectedKey);
+  };
+
+  const allVendorsConfirmed = vendors.every(v => v.status === 'confirmed');
+
+  return (
+    <div className="space-y-8 animate-fade-up">
+      <div className="section-heading">
+        <MiniLabel tone="amber">06 / Ripple Engine</MiniLabel>
+        <h1>The plan changed. <em>The trip doesn't have to.</em></h1>
+        <p>Orbit checks time, distance, preferences, vendor availability, and cost—then gives the operator a clear choice.</p>
+      </div>
+      
+      <div className="grid gap-6 xl:grid-cols-[0.7fr_1.3fr]">
+        <Card className="border-amber/22 bg-amber/7 p-6">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber text-ink">
+              <CloudRain size={22} />
+            </div>
+            <div>
+              <MiniLabel tone="amber">Conflict detected</MiniLabel>
+              <h2 className="mt-2 font-display text-2xl font-semibold leading-tight tracking-tighter text-ink">Heavy rain at 2:00 PM</h2>
+              <p className="mt-3 text-sm leading-6 text-ink/70">Outdoor trek is no longer safe. Three downstream bookings are affected.</p>
+            </div>
+          </div>
+          
+          <div className="mt-8 space-y-3 border-t border-amber/18 pt-5 text-xs">
+            <div className="flex justify-between">
+              <span className="text-ink-muted">Affected day</span>
+              <strong>Day 2 · 12:30–16:00</strong>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-ink-muted">Traveler preference</span>
+              <strong>Culture · Food</strong>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-ink-muted">Operators impacted</span>
+              <strong>4 vendors</strong>
+            </div>
+          </div>
+          
+          <div className="mt-6 flex items-center gap-2 text-xs font-bold text-amber-dark">
+            <Activity size={15} /> Ripple analysis ready
+          </div>
+        </Card>
+        
+        <Card className="p-6">
+          <div className="flex items-center justify-between border-b border-ink/8 pb-5">
+            <div>
+              <MiniLabel>Resolution paths</MiniLabel>
+              <p className="mt-2 text-sm font-bold text-ink">Choose how the route should bend.</p>
+            </div>
+            <span className="rounded-full bg-teal/10 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-teal">
+              3 options
+            </span>
+          </div>
+          
+          <div className="mt-5 space-y-3">
+            {options.map((option) => (
+              <button 
+                type="button" 
+                key={option.key} 
+                onClick={() => !resolved && !isResolving && setSelectedKey(option.key)} 
+                className={cn(
+                  "ripple-option w-full text-left",
+                  selectedKey === option.key && !resolved && !isResolving && "ripple-option-active",
+                  resolved && option.key === selectedKey && "ripple-option-resolved"
+                )}
+                disabled={resolved || isResolving}
+              >
+                <div className={cn(
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold",
+                  selectedKey === option.key && !resolved && !isResolving ? "bg-teal text-white" : "bg-ink/7 text-ink-muted",
+                  resolved && option.key === selectedKey && "bg-moss text-white"
+                )}>
+                  {resolved && option.key === selectedKey ? <Check size={16} /> : option.key}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <strong className="text-sm text-ink">{option.title}</strong>
+                      <p className="mt-1 text-xs leading-5 text-ink-muted">{option.copy}</p>
+                    </div>
+                    {selectedKey === option.key && !resolved && !isResolving && (
+                      <span className="rounded-full bg-teal/10 px-2 py-1 text-[10px] font-bold text-teal">Recommended</span>
+                    )}
+                    {resolved && option.key === selectedKey && (
+                      <span className="rounded-full bg-moss/10 px-2 py-1 text-[10px] font-bold text-moss">Applied</span>
+                    )}
+                  </div>
+                  <div className="mt-3 flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-ink-muted">
+                    <span>{option.meta}</span>
+                    <span className={cn(
+                      option.price.startsWith("−") ? "text-moss" : 
+                      option.price.startsWith("+") ? "text-amber-dark" : "text-teal"
+                    )}>
+                      {option.price}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+          
+          {/* Cascade Animation */}
+          {showCascade && (
+            <div className="mt-5 pt-5 border-t border-ink/8">
+              <CascadeAnimation 
+                isResolving={isResolving}
+                resolved={cascadeComplete}
+                onComplete={handleCascadeComplete}
+              />
+            </div>
+          )}
+          
+          <Button 
+            onClick={handleResolve} 
+            disabled={resolved || isResolving || showCascade}
+            className={cn(
+              "mt-5 h-11 w-full rounded-xl font-bold",
+              resolved ? "bg-moss text-white hover:bg-moss" : "bg-ink text-paper hover:bg-ink/90"
+            )}
+          >
+            {resolved ? (
+              <><Check size={16} className="mr-2" /> Ripple resolved across trip</>
+            ) : isResolving || showCascade ? (
+              <><Loader2 size={16} className="mr-2 animate-spin" /> Resolving...</>
+            ) : (
+              <><Zap size={16} className="mr-2 text-saffron-light" /> Resolve with Option {selectedKey}</>
+            )}
+          </Button>
+        </Card>
+      </div>
+    </div>
+  );
 }
 
 function Complete({ resolved, resolutionKey }: { resolved: boolean; resolutionKey: string }) {
-  return <div className="space-y-8 animate-fade-up"><div className="section-heading"><MiniLabel tone="green">07 / Complete</MiniLabel><h1>A trip that kept its <em>shape.</em></h1><p>Not because nothing changed—because the system knew what to do when it did.</p></div><div className="grid gap-6 xl:grid-cols-[1fr_0.8fr]"><Card className="overflow-hidden p-0"><div className="relative h-52"><img src={imageReference} alt="Jaipur road-trip landscape" className="h-full w-full object-cover" /><div className="absolute inset-0 bg-linear-to-t from-ink/80 to-transparent" /><div className="absolute bottom-5 left-6 text-paper"><p className="eyebrow text-paper/60">Trip summary · Aanya Sharma</p><h2 className="mt-2 font-display text-3xl font-semibold tracking-tighter">Jaipur circuit</h2></div></div><div className="grid grid-cols-2 gap-4 p-6 sm:grid-cols-4"><div><p className="eyebrow">Total</p><p className="mt-2 text-xl font-bold">₹49,240</p></div><div><p className="eyebrow">Waypoints</p><p className="mt-2 text-xl font-bold">9</p></div><div><p className="eyebrow">Buffer</p><p className="mt-2 text-xl font-bold text-moss">30 min</p></div><div><p className="eyebrow">Status</p><p className="mt-2 text-xl font-bold text-moss">Held</p></div></div><div className="border-t border-ink/8 px-6 py-5"><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-moss/10 text-moss"><CheckCircle2 size={17} /></div><div><p className="text-sm font-bold text-ink">{resolutionKey === "A" ? "Ripple Engine preserved the day" : resolutionKey === "B" ? "Ripple Engine moved the weather risk" : "Ripple Engine closed the affected booking"}</p><p className="mt-1 text-xs text-ink-muted">{resolutionKey === "A" ? "Outdoor trek swapped for an indoor gallery. All affected partners notified." : resolutionKey === "B" ? "Outdoor trek moved to Day 3 and the driver buffer stayed protected." : "The trek was cancelled, a vendor credit was logged, and the rest of the route stayed intact."}</p></div></div></div></Card><div className="space-y-5"><Card className="p-5"><div className="flex items-center justify-between"><MiniLabel>Memories log</MiniLabel><button type="button" onClick={() => { navigator.clipboard?.writeText("Jaipur circuit · Aanya Sharma"); toast.success("Trip memories link copied"); }} className="icon-button h-8 w-8" aria-label="Copy trip memories link"><Copy size={15} /></button></div><div className="mt-5 grid grid-cols-2 gap-3"><div className="memory-tile"><span>01</span><strong>Golden hour<br />at Amber Fort</strong></div><div className="memory-tile memory-tile-teal"><span>02</span><strong>Tea, rain,<br />and a good detour</strong></div></div></Card><Card className="p-5"><div className="flex items-center justify-between"><MiniLabel>Review loop</MiniLabel><Star size={15} className="text-saffron" /></div><p className="mt-3 text-sm leading-6 text-ink/75">Rate both sides of the route. Reliability scores update for the next traveler.</p><div className="mt-4 flex items-center justify-between rounded-xl bg-paper-dark px-3 py-3"><div className="flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-saffron/16 text-saffron"><Store size={15} /></div><span className="text-xs font-bold">Local stop</span></div><span className="text-xs font-bold text-moss">4.8 → 4.9</span></div><Button onClick={() => toast.success("Review loop opened · traveler and partner views paired")} variant="outline" className="mt-4 h-10 w-full rounded-xl border-ink/12 bg-paper text-xs font-bold text-ink hover:bg-paper-dark">Open dual-sided review <ArrowRight size={14} className="ml-2" /></Button></Card></div></div></div>;
+  const resolutionMessages = {
+    A: {
+      title: "Ripple Engine preserved the day",
+      detail: "Outdoor trek swapped for an indoor gallery. All affected partners notified."
+    },
+    B: {
+      title: "Ripple Engine moved the weather risk",
+      detail: "Outdoor trek moved to Day 3 and the driver buffer stayed protected."
+    },
+    C: {
+      title: "Ripple Engine closed the affected booking",
+      detail: "The trek was cancelled, a vendor credit was logged, and the rest of the route stayed intact."
+    }
+  };
+  
+  const msg = resolutionMessages[resolutionKey as keyof typeof resolutionMessages] || resolutionMessages.A;
+  
+  return (
+    <div className="space-y-8 animate-fade-up">
+      <div className="section-heading">
+        <MiniLabel tone="green">07 / Complete</MiniLabel>
+        <h1>A trip that kept its <em>shape.</em></h1>
+        <p>Not because nothing changed—because the system knew what to do when it did.</p>
+      </div>
+      
+      <div className="grid gap-6 xl:grid-cols-[1fr_0.8fr]">
+        <Card className="overflow-hidden p-0">
+          <div className="relative h-52">
+            <img src={imageReference} alt="Jaipur road-trip landscape" className="h-full w-full object-cover" />
+            <div className="absolute inset-0 bg-linear-to-t from-ink/80 to-transparent" />
+            <div className="absolute bottom-5 left-6 text-paper">
+              <p className="eyebrow text-paper/60">Trip summary · Aanya Sharma</p>
+              <h2 className="mt-2 font-display text-3xl font-semibold tracking-tighter">Jaipur circuit</h2>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4 p-6 sm:grid-cols-4">
+            <div><p className="eyebrow">Total</p><p className="mt-2 text-xl font-bold">₹49,240</p></div>
+            <div><p className="eyebrow">Waypoints</p><p className="mt-2 text-xl font-bold">9</p></div>
+            <div><p className="eyebrow">Buffer</p><p className="mt-2 text-xl font-bold text-moss">30 min</p></div>
+            <div><p className="eyebrow">Status</p><p className="mt-2 text-xl font-bold text-moss">Held</p></div>
+          </div>
+          
+          <div className="border-t border-ink/8 px-6 py-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-moss/10 text-moss">
+                <CheckCircle2 size={17} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-ink">{msg.title}</p>
+                <p className="mt-1 text-xs text-ink-muted">{msg.detail}</p>
+              </div>
+            </div>
+          </div>
+        </Card>
+        
+        <div className="space-y-5">
+          <Card className="p-5">
+            <div className="flex items-center justify-between">
+              <MiniLabel>Memories log</MiniLabel>
+              <button 
+                type="button" 
+                onClick={() => { 
+                  navigator.clipboard?.writeText("Jaipur circuit · Aanya Sharma"); 
+                  toast.success("Trip memories link copied"); 
+                }} 
+                className="icon-button h-8 w-8" 
+                aria-label="Copy trip memories link"
+              >
+                <Copy size={15} />
+              </button>
+            </div>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="memory-tile">
+                <span>01</span>
+                <strong>Golden hour<br />at Amber Fort</strong>
+              </div>
+              <div className="memory-tile memory-tile-teal">
+                <span>02</span>
+                <strong>Tea, rain,<br />and a good detour</strong>
+              </div>
+            </div>
+          </Card>
+          
+          <Card className="p-5">
+            <div className="flex items-center justify-between">
+              <MiniLabel>Review loop</MiniLabel>
+              <Star size={15} className="text-saffron" />
+            </div>
+            <p className="mt-3 text-sm leading-6 text-ink/75">Rate both sides of the route. Reliability scores update for the next traveler.</p>
+            <div className="mt-4 flex items-center justify-between rounded-xl bg-paper-dark px-3 py-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-saffron/16 text-saffron">
+                  <Store size={15} />
+                </div>
+                <span className="text-xs font-bold">Local stop</span>
+              </div>
+              <span className="text-xs font-bold text-moss">4.8 → 4.9</span>
+            </div>
+            <Button 
+              onClick={() => toast.success("Review loop opened · traveler and partner views paired")} 
+              variant="outline" 
+              className="mt-4 h-10 w-full rounded-xl border-ink/12 bg-paper text-xs font-bold text-ink hover:bg-paper-dark"
+            >
+              Open dual-sided review <ArrowRight size={14} className="ml-2" />
+            </Button>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
 }
+
+// =============================================================================
+// TRAVELER VIEW COMPONENT
+// =============================================================================
 
 function TravelerView({
   step,
@@ -1594,6 +2899,11 @@ function TravelerView({
   setChatMessages,
   chatTyping,
   setChatTyping,
+  vendors,
+  onConfirmVendor,
+  onConfirmAll,
+  isConfirmingAll,
+  isResolving,
 }: {
   step: TravelerStep;
   setStep: (step: TravelerStep) => void;
@@ -1638,6 +2948,11 @@ function TravelerView({
   setChatMessages: (messages: ChatMessage[]) => void;
   chatTyping: boolean;
   setChatTyping: (typing: boolean) => void;
+  vendors: VendorConfirmation[];
+  onConfirmVendor: (id: string) => void;
+  onConfirmAll: () => void;
+  isConfirmingAll: boolean;
+  isResolving: boolean;
 }) {
   switch (step) {
     case 0:
@@ -1690,30 +3005,414 @@ function TravelerView({
     case 2:
       return <Customization upgraded={upgraded} setUpgraded={setUpgraded} addedStop={addedStop} tripTotal={tripTotal} onNext={() => setStep(3)} />;
     case 3:
-      return <Checkout addedStop={addedStop} upgraded={upgraded} onNext={() => setStep(4)} />;
+      return <Checkout 
+        addedStop={addedStop} 
+        upgraded={upgraded} 
+        onNext={() => setStep(4)}
+        vendors={vendors}
+        onConfirmVendor={onConfirmVendor}
+        onConfirmAll={onConfirmAll}
+        isConfirmingAll={isConfirmingAll}
+      />;
     case 4:
-      return <DigitalPass destination={destination} onAdapt={onAdapt} vendorConfirmed={vendorConfirmed} />;
+      return <DigitalPass 
+        destination={destination} 
+        onAdapt={onAdapt} 
+        vendorConfirmed={vendorConfirmed}
+        vendors={vendors}
+        onConfirmVendor={onConfirmVendor}
+      />;
     case 5:
-      return <RippleOptions onResolve={onResolve} resolved={resolved} />;
+      return <RippleOptions 
+        onResolve={onResolve} 
+        resolved={resolved} 
+        isResolving={isResolving}
+        vendors={vendors}
+      />;
     case 6:
       return <Complete resolved={resolved} resolutionKey={resolutionKey} />;
+    default:
+      return null;
   }
 }
 
-function OperatorDashboard({ resolved, onResolve }: { resolved: boolean; onResolve: () => void }) {
+// =============================================================================
+// OPERATOR DASHBOARD
+// =============================================================================
+
+function OperatorDashboard({ resolved, onResolve, vendors }: { resolved: boolean; onResolve: () => void; vendors: VendorConfirmation[] }) {
   const [showRipple, setShowRipple] = useState(false);
   const alertState = resolved ? "Resolved" : "Needs action";
-  return <div className="space-y-8 animate-fade-up"><div className="section-heading flex flex-col justify-between gap-5 md:flex-row md:items-end"><div><MiniLabel tone="teal">Operator Command Center</MiniLabel><h1>See the whole route. <em>Move one thing.</em></h1><p>A calm control surface for active trips, vendor health, margins, and the next operational risk.</p></div><div className="flex items-center gap-2"><StatusChip tone="green">12 active trips</StatusChip><StatusChip tone={resolved ? "green" : "amber"}>{resolved ? "All clear" : "1 risk needs action"}</StatusChip></div></div><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"><Metric label="Active trips" value="12" sub="+3 from yesterday" icon={Navigation} tone="teal" /><Metric label="Live margin" value="18.4%" sub="₹86,420 protected" icon={TrendingUp} tone="green" /><Metric label="Vendor response" value="94%" sub="Median · 3m 12s" icon={MessageCircle} tone="saffron" /><Metric label="Open risks" value={resolved ? "0" : "01"} sub={resolved ? "Route stable" : "Rain · Day 2"} icon={CircleAlert} tone={resolved ? "green" : "amber"} /></div><div className="grid gap-5 xl:grid-cols-[1.25fr_0.75fr]"><Card className="overflow-hidden p-0"><div className="flex items-center justify-between border-b border-ink/8 px-5 py-4"><div><MiniLabel>Live fleet map</MiniLabel><p className="mt-2 text-sm font-bold text-ink">Active groups · North Rajasthan</p></div><button type="button" onClick={() => toast.info("Full fleet map opened in visual preview")} className="flex items-center gap-2 rounded-lg border border-ink/10 px-3 py-2 text-xs font-bold text-ink-muted"><MapPin size={13} /> Full map <ChevronDown size={13} /></button></div><div className="relative h-97.5 overflow-hidden bg-[#cbd9d3]"><img src={mapImage} alt="Operational live fleet map" className="absolute inset-0 h-full w-full object-cover opacity-85" /><div className="absolute inset-0 bg-ink/5" /><div className="operator-marker left-[18%] top-[70%]"><span className="h-3 w-3 rounded-full bg-teal shadow-[0_0_0_5px_rgba(13,148,136,0.18)]" /><span>TRP-8029 · on route</span></div><div className="operator-marker left-[55%] top-[43%]"><span className="h-3 w-3 rounded-full bg-amber shadow-[0_0_0_5px_rgba(217,119,6,0.16)]" /><span>TRP-8018 · weather watch</span></div><div className="operator-marker left-[72%] top-[24%]"><span className="h-3 w-3 rounded-full bg-moss shadow-[0_0_0_5px_rgba(77,124,75,0.16)]" /><span>TRP-8004 · stable</span></div><div className="absolute bottom-4 left-4 flex gap-2 rounded-xl border border-paper/60 bg-paper/88 px-3 py-2 text-[10px] font-bold text-ink shadow-sm backdrop-blur-md"><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-teal" /> Active</span><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-amber" /> Watch</span><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-moss" /> Stable</span></div></div></Card><div className="space-y-5"><Card className={cn("p-5", resolved ? "border-moss/20 bg-moss/5" : "border-amber/20 bg-amber/5")}><div className="flex items-start justify-between"><div className="flex items-center gap-2"><span className={cn("flex h-9 w-9 items-center justify-center rounded-xl", resolved ? "bg-moss/12 text-moss" : "bg-amber text-ink")} >{resolved ? <CheckCircle2 size={17} /> : <CloudRain size={17} />}</span><div><MiniLabel tone={resolved ? "green" : "amber"}>Predictive threat matrix</MiniLabel><p className="mt-1 text-sm font-bold text-ink">{resolved ? "Weather ripple resolved" : "Heavy rain · Day 2"}</p></div></div><StatusChip tone={resolved ? "green" : "amber"}>{alertState}</StatusChip></div><p className="mt-5 text-sm leading-6 text-ink/72">{resolved ? "Indoor Art Gallery substitution cascaded to traveler, driver, hotel, guide, and vendor views." : "Outdoor trek at risk at 2:00 PM. Four connected bookings need a coordinated answer."}</p><div className="mt-5 grid grid-cols-2 gap-2 text-xs"><div className="rounded-xl bg-paper/70 p-3"><span className="text-ink-muted">Traveler</span><strong className="mt-1 block">Aanya Sharma</strong></div><div className="rounded-xl bg-paper/70 p-3"><span className="text-ink-muted">Impact</span><strong className="mt-1 block">4 vendors</strong></div></div>{!resolved && <Button onClick={() => setShowRipple(true)} className="mt-5 h-11 w-full rounded-xl bg-ink font-bold text-paper hover:bg-ink/90"><Zap size={15} className="mr-2 text-saffron-light" /> Open Ripple Engine</Button>}{resolved && <div className="mt-5 flex items-center gap-2 text-xs font-bold text-moss"><CheckCircle2 size={15} /> Cascade complete · 00:01:42</div>}</Card><Card className="p-5"><div className="flex items-center justify-between"><MiniLabel>Dispatch activity</MiniLabel><span className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">Now</span></div><div className="mt-5 space-y-4">{[{ icon: MessageCircle, title: "Vendor confirmed", detail: "Customer #TRV-8029", tone: "teal" }, { icon: Bike, title: resolved ? "Driver route updated" : "Driver route stable", detail: resolved ? "New stop · Gallery District" : "TRP-8029 · 12 mins ahead", tone: resolved ? "green" : "saffron" }, { icon: ShieldCheck, title: "Privacy relay active", detail: "No traveler contact exposed", tone: "green" }].map((item) => { const Icon = item.icon; return <div key={item.title} className="flex items-start gap-3"><div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", item.tone === "teal" ? "bg-teal/10 text-teal" : item.tone === "saffron" ? "bg-saffron/12 text-saffron" : "bg-moss/10 text-moss")}><Icon size={14} /></div><div><p className="text-xs font-bold text-ink">{item.title}</p><p className="mt-1 text-[11px] text-ink-muted">{item.detail}</p></div></div>; })}</div></Card></div></div>{showRipple && <RippleModal onClose={() => setShowRipple(false)} onResolve={() => { onResolve(); setShowRipple(false); }} />}</div>;
+  const pendingVendors = vendors.filter(v => v.status === 'pending');
+  const confirmedVendors = vendors.filter(v => v.status === 'confirmed');
+  
+  return (
+    <div className="space-y-8 animate-fade-up">
+      <div className="section-heading flex flex-col justify-between gap-5 md:flex-row md:items-end">
+        <div>
+          <MiniLabel tone="teal">Operator Command Center</MiniLabel>
+          <h1>See the whole route. <em>Move one thing.</em></h1>
+          <p>A calm control surface for active trips, vendor health, margins, and the next operational risk.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <StatusChip tone="green">12 active trips</StatusChip>
+          <StatusChip tone={resolved ? "green" : "amber"}>
+            {resolved ? "All clear" : `${pendingVendors.length} vendor${pendingVendors.length > 1 ? 's' : ''} pending`}
+          </StatusChip>
+        </div>
+      </div>
+      
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Metric label="Active trips" value="12" sub="+3 from yesterday" icon={Navigation} tone="teal" />
+        <Metric label="Live margin" value="18.4%" sub="₹86,420 protected" icon={TrendingUp} tone="green" />
+        <Metric label="Vendor response" value={`${Math.round((confirmedVendors.length / vendors.length) * 100)}%`} sub={`${confirmedVendors.length}/${vendors.length} confirmed`} icon={MessageCircle} tone="saffron" />
+        <Metric label="Open risks" value={resolved ? "0" : "01"} sub={resolved ? "Route stable" : "Rain · Day 2"} icon={CircleAlert} tone={resolved ? "green" : "amber"} />
+      </div>
+      
+      <div className="grid gap-5 xl:grid-cols-[1.25fr_0.75fr]">
+        <Card className="overflow-hidden p-0">
+          <div className="flex items-center justify-between border-b border-ink/8 px-5 py-4">
+            <div>
+              <MiniLabel>Live fleet map</MiniLabel>
+              <p className="mt-2 text-sm font-bold text-ink">Active groups · North Rajasthan</p>
+            </div>
+            <button type="button" onClick={() => toast.info("Full fleet map opened in visual preview")} className="flex items-center gap-2 rounded-lg border border-ink/10 px-3 py-2 text-xs font-bold text-ink-muted">
+              <MapPin size={13} /> Full map <ChevronDown size={13} />
+            </button>
+          </div>
+          <div className="relative h-97.5 overflow-hidden bg-[#cbd9d3]">
+            <img src={mapImage} alt="Operational live fleet map" className="absolute inset-0 h-full w-full object-cover opacity-85" />
+            <div className="absolute inset-0 bg-ink/5" />
+            <div className="operator-marker left-[18%] top-[70%]">
+              <span className="h-3 w-3 rounded-full bg-teal shadow-[0_0_0_5px_rgba(13,148,136,0.18)]" />
+              <span>TRP-8029 · on route</span>
+            </div>
+            <div className="operator-marker left-[55%] top-[43%]">
+              <span className="h-3 w-3 rounded-full bg-amber shadow-[0_0_0_5px_rgba(217,119,6,0.16)]" />
+              <span>TRP-8018 · weather watch</span>
+            </div>
+            <div className="operator-marker left-[72%] top-[24%]">
+              <span className="h-3 w-3 rounded-full bg-moss shadow-[0_0_0_5px_rgba(77,124,75,0.16)]" />
+              <span>TRP-8004 · stable</span>
+            </div>
+            <div className="absolute bottom-4 left-4 flex gap-2 rounded-xl border border-paper/60 bg-paper/88 px-3 py-2 text-[10px] font-bold text-ink shadow-sm backdrop-blur-md">
+              <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-teal" /> Active</span>
+              <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-amber" /> Watch</span>
+              <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-moss" /> Stable</span>
+            </div>
+          </div>
+        </Card>
+        
+        <div className="space-y-5">
+          <Card className={cn("p-5", resolved ? "border-moss/20 bg-moss/5" : "border-amber/20 bg-amber/5")}>
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2">
+                <span className={cn("flex h-9 w-9 items-center justify-center rounded-xl", resolved ? "bg-moss/12 text-moss" : "bg-amber text-ink")}>
+                  {resolved ? <CheckCircle2 size={17} /> : <CloudRain size={17} />}
+                </span>
+                <div>
+                  <MiniLabel tone={resolved ? "green" : "amber"}>Predictive threat matrix</MiniLabel>
+                  <p className="mt-1 text-sm font-bold text-ink">{resolved ? "Weather ripple resolved" : "Heavy rain · Day 2"}</p>
+                </div>
+              </div>
+              <StatusChip tone={resolved ? "green" : "amber"}>{alertState}</StatusChip>
+            </div>
+            
+            <p className="mt-5 text-sm leading-6 text-ink/72">
+              {resolved 
+                ? "Indoor Art Gallery substitution cascaded to traveler, driver, hotel, guide, and vendor views." 
+                : "Outdoor trek at risk at 2:00 PM. Four connected bookings need a coordinated answer."}
+            </p>
+            
+            <div className="mt-5 grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-xl bg-paper/70 p-3">
+                <span className="text-ink-muted">Traveler</span>
+                <strong className="mt-1 block">Aanya Sharma</strong>
+              </div>
+              <div className="rounded-xl bg-paper/70 p-3">
+                <span className="text-ink-muted">Impact</span>
+                <strong className="mt-1 block">4 vendors</strong>
+              </div>
+            </div>
+            
+            {/* Vendor status summary */}
+            <div className="mt-4 space-y-1.5">
+              <p className="text-[10px] font-bold uppercase text-ink-muted">Vendor Status</p>
+              {vendors.map((vendor) => {
+                const Icon = vendor.icon;
+                const isConfirmed = vendor.status === 'confirmed';
+                return (
+                  <div key={vendor.id} className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5 text-ink-muted">
+                      <Icon size={12} /> {vendor.name}
+                    </span>
+                    <span className={cn("font-bold", isConfirmed ? "text-moss" : "text-amber")}>
+                      {isConfirmed ? "✓ Confirmed" : "Pending"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            
+            {!resolved && (
+              <Button onClick={() => setShowRipple(true)} className="mt-5 h-11 w-full rounded-xl bg-ink font-bold text-paper hover:bg-ink/90">
+                <Zap size={15} className="mr-2 text-saffron-light" /> Open Ripple Engine
+              </Button>
+            )}
+            
+            {resolved && (
+              <div className="mt-5 flex items-center gap-2 text-xs font-bold text-moss">
+                <CheckCircle2 size={15} /> Cascade complete · 00:01:42
+              </div>
+            )}
+          </Card>
+          
+          <Card className="p-5">
+            <div className="flex items-center justify-between">
+              <MiniLabel>Dispatch activity</MiniLabel>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">Now</span>
+            </div>
+            <div className="mt-5 space-y-4">
+              {[
+                { icon: MessageCircle, title: "Vendor confirmed", detail: "Customer #TRV-8029", tone: "teal" },
+                { icon: Bike, title: resolved ? "Driver route updated" : "Driver route stable", detail: resolved ? "New stop · Gallery District" : "TRP-8029 · 12 mins ahead", tone: resolved ? "green" : "saffron" },
+                { icon: ShieldCheck, title: "Privacy relay active", detail: "No traveler contact exposed", tone: "green" }
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.title} className="flex items-start gap-3">
+                    <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", item.tone === "teal" ? "bg-teal/10 text-teal" : item.tone === "saffron" ? "bg-saffron/12 text-saffron" : "bg-moss/10 text-moss")}>
+                      <Icon size={14} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-ink">{item.title}</p>
+                      <p className="mt-1 text-[11px] text-ink-muted">{item.detail}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+      </div>
+      
+      {showRipple && (
+        <RippleModal onClose={() => setShowRipple(false)} onResolve={() => { onResolve(); setShowRipple(false); }} />
+      )}
+    </div>
+  );
 }
 
 function RippleModal({ onClose, onResolve }: { onClose: () => void; onResolve: () => void }) {
-  return <div className="modal-backdrop"><div className="modal-card"><div className="flex items-start justify-between border-b border-ink/8 p-6"><div><MiniLabel tone="amber">Ripple Engine · TRP-8029</MiniLabel><h2 className="mt-2 font-display text-2xl font-semibold tracking-tighter">Resolve the rain ripple</h2><p className="mt-2 text-sm text-ink-muted">The graph found three safe paths for Aanya's Day 2.</p></div><button type="button" className="icon-button" onClick={onClose}><X size={16} /></button></div><div className="space-y-3 p-6">{[{ label: "A", title: "Swap for Indoor Art Gallery", detail: "Best preference match · ₹0 delta", tone: "teal" }, { label: "B", title: "Reschedule trek to Day 3", detail: "Adds 45 minutes to final day · +₹400", tone: "neutral" }, { label: "C", title: "Issue instant refund credit", detail: "Preserve route · −₹1,800", tone: "neutral" }].map((option) => <button key={option.label} type="button" onClick={option.label === "A" ? onResolve : () => toast.info(`${option.title} selected for visual comparison`)} className={cn("ripple-modal-option", option.tone === "teal" && "ripple-modal-option-active")}><span className={cn("flex h-9 w-9 items-center justify-center rounded-xl text-sm font-bold", option.tone === "teal" ? "bg-teal text-white" : "bg-ink/7 text-ink-muted")}>{option.label}</span><span className="flex-1 text-left"><strong className="block text-sm text-ink">{option.title}</strong><small className="mt-1 block text-xs text-ink-muted">{option.detail}</small></span>{option.tone === "teal" ? <span className="rounded-full bg-teal/10 px-2 py-1 text-[10px] font-bold text-teal">Recommended</span> : <ArrowRight size={15} className="text-ink-muted" />}</button>)}</div><div className="flex items-center justify-between border-t border-ink/8 bg-paper-dark px-6 py-4"><span className="text-xs text-ink-muted">Updates 5 connected surfaces</span><Button onClick={onResolve} className="h-10 rounded-xl bg-ink px-4 text-xs font-bold text-paper hover:bg-ink/90">Resolve cascade <ArrowRight size={14} className="ml-2" /></Button></div></div></div>;
+  return (
+    <div className="modal-backdrop">
+      <div className="modal-card">
+        <div className="flex items-start justify-between border-b border-ink/8 p-6">
+          <div>
+            <MiniLabel tone="amber">Ripple Engine · TRP-8029</MiniLabel>
+            <h2 className="mt-2 font-display text-2xl font-semibold tracking-tighter">Resolve the rain ripple</h2>
+            <p className="mt-2 text-sm text-ink-muted">The graph found three safe paths for Aanya's Day 2.</p>
+          </div>
+          <button type="button" className="icon-button" onClick={onClose}><X size={16} /></button>
+        </div>
+        
+        <div className="space-y-3 p-6">
+          {[
+            { label: "A", title: "Swap for Indoor Art Gallery", detail: "Best preference match · ₹0 delta", tone: "teal" },
+            { label: "B", title: "Reschedule trek to Day 3", detail: "Adds 45 minutes to final day · +₹400", tone: "neutral" },
+            { label: "C", title: "Issue instant refund credit", detail: "Preserve route · −₹1,800", tone: "neutral" }
+          ].map((option) => (
+            <button 
+              key={option.label} 
+              type="button" 
+              onClick={option.label === "A" ? onResolve : () => toast.info(`${option.title} selected for visual comparison`)} 
+              className={cn("ripple-modal-option", option.tone === "teal" && "ripple-modal-option-active")}
+            >
+              <span className={cn("flex h-9 w-9 items-center justify-center rounded-xl text-sm font-bold", option.tone === "teal" ? "bg-teal text-white" : "bg-ink/7 text-ink-muted")}>
+                {option.label}
+              </span>
+              <span className="flex-1 text-left">
+                <strong className="block text-sm text-ink">{option.title}</strong>
+                <small className="mt-1 block text-xs text-ink-muted">{option.detail}</small>
+              </span>
+              {option.tone === "teal" ? (
+                <span className="rounded-full bg-teal/10 px-2 py-1 text-[10px] font-bold text-teal">Recommended</span>
+              ) : (
+                <ArrowRight size={15} className="text-ink-muted" />
+              )}
+            </button>
+          ))}
+        </div>
+        
+        <div className="flex items-center justify-between border-t border-ink/8 bg-paper-dark px-6 py-4">
+          <span className="text-xs text-ink-muted">Updates 5 connected surfaces</span>
+          <Button onClick={onResolve} className="h-10 rounded-xl bg-ink px-4 text-xs font-bold text-paper hover:bg-ink/90">
+            Resolve cascade <ArrowRight size={14} className="ml-2" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 }
+
+// =============================================================================
+// VENDOR VIEW
+// =============================================================================
 
 function VendorView({ confirmed, onConfirm }: { confirmed: boolean; onConfirm: () => void }) {
   const [declined, setDeclined] = useState(false);
-  return <div className="space-y-8 animate-fade-up"><div className="section-heading"><MiniLabel tone="teal">Vendor Micro-Swarm</MiniLabel><h1>No new app. <em>Just the next clear action.</em></h1><p>A privacy-safe WhatsApp bridge lets local partners confirm schedules without seeing a traveler's private number.</p></div><div className="grid gap-6 xl:grid-cols-[0.7fr_1.3fr]"><Card className="vendor-phone-wrap"><div className="vendor-phone"><div className="phone-notch" /><div className="flex items-center gap-3 border-b border-ink/8 bg-paper px-4 py-4"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-saffron/15 text-saffron"><Store size={16} /></div><div className="flex-1"><p className="text-sm font-bold text-ink">Local Store</p><p className="mt-0.5 flex items-center gap-1 text-[10px] text-moss"><span className="h-1.5 w-1.5 rounded-full bg-moss" /> WhatsApp business</p></div><MoreHorizontal size={17} className="text-ink-muted" /></div><div className="flex-1 space-y-4 bg-[#e9efe9] p-4"><div className="mx-auto w-fit rounded-full bg-paper/70 px-3 py-1 text-[10px] font-bold text-ink-muted">Today · Privacy Relay</div><div className="chat-bubble chat-bubble-in"><p className="text-xs leading-5 text-ink">New order request from <strong>Customer #TRV-8029</strong>:<br /><br /><strong>Items ready for pickup</strong><br />Arrival in 15 mins<br />System fixed rate: <strong>₹120</strong></p><div className="mt-3 flex items-center gap-1.5 rounded-lg bg-teal/8 px-2 py-2 text-[10px] font-bold text-teal"><LockKeyhole size={12} /> Traveler number hidden</div><span className="mt-2 block text-[10px] text-ink-muted">11:42 AM · delivered</span></div>{confirmed ? <div className="chat-bubble chat-bubble-out"><p className="text-xs leading-5 text-ink">Confirmed. We'll have it ready.</p><span className="mt-2 block text-[10px] text-ink-muted">11:43 AM · seen</span></div> : declined ? <div className="chat-bubble chat-bubble-out"><p className="text-xs leading-5 text-ink">Can't fulfil this request today.</p><span className="mt-2 block text-[10px] text-ink-muted">11:43 AM · sent</span><button type="button" onClick={() => setDeclined(false)} className="mt-3 text-[10px] font-bold text-teal">Reopen request</button></div> : <div className="chat-bubble chat-bubble-in"><div className="flex items-center gap-2"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-saffron/12 text-saffron"><TicketCheck size={15} /></span><div><strong className="block text-xs text-ink">Digital QR Voucher</strong><span className="text-[10px] text-ink-muted">Fixed menu rate · ₹120</span></div></div><div className="mt-3 flex gap-2"><button type="button" onClick={onConfirm} className="flex-1 rounded-lg bg-moss px-3 py-2 text-[10px] font-bold text-white">Confirm</button><button type="button" onClick={() => { setDeclined(true); toast.info("Decline logged · operator notified"); }} className="flex-1 rounded-lg border border-ink/10 bg-paper px-3 py-2 text-[10px] font-bold text-ink-muted">Decline</button></div></div>}</div><div className="border-t border-ink/8 bg-paper px-4 py-3"><div className="flex items-center gap-2 rounded-xl bg-paper-dark px-3 py-2 text-xs text-ink-muted"><span className="flex-1">Message</span><Send size={14} className="text-teal" /></div></div></div></Card><div className="space-y-5"><Card className="p-6"><div className="flex items-center justify-between"><div><MiniLabel tone="teal">Privacy-preserving bridge</MiniLabel><h2 className="mt-2 font-display text-2xl font-semibold tracking-tighter">The relay keeps trust visible.</h2></div><ShieldCheck size={23} className="text-teal" /></div><div className="mt-6 space-y-3">{[{ icon: LockKeyhole, title: "Anonymized proxy ID", copy: "Customer #TRV-8029 replaces personal details." }, { icon: IndianRupee, title: "Fixed transparent rate", copy: "₹120 is attached to the voucher before arrival." }, { icon: Activity, title: "Operator audit log", copy: confirmed ? "Confirmed · 11:43 AM · response time 1m" : "Waiting for vendor confirmation · alert at 10m" }].map((item) => { const Icon = item.icon; return <div key={item.title} className="flex items-start gap-3 rounded-xl bg-paper-dark p-3"><div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal/10 text-teal"><Icon size={15} /></div><div><p className="text-xs font-bold text-ink">{item.title}</p><p className="mt-1 text-xs leading-5 text-ink-muted">{item.copy}</p></div></div>; })}</div></Card><Card className={cn("p-6", confirmed ? "border-moss/20 bg-moss/5" : "border-saffron/18 bg-saffron/5")}><div className="flex items-center gap-3"><div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", confirmed ? "bg-moss/12 text-moss" : "bg-saffron/12 text-saffron")} >{confirmed ? <CheckCircle2 size={18} /> : <Timer size={18} />}</div><div><MiniLabel tone={confirmed ? "green" : "saffron"}>Command center sync</MiniLabel><p className="mt-1 text-sm font-bold text-ink">{confirmed ? "Traveler pass updated" : "Confirmation pending"}</p></div></div><div className="mt-5 flex items-center gap-2 text-xs text-ink-muted"><span className={cn("h-2 w-2 rounded-full", confirmed ? "bg-moss" : "bg-saffron")} /> {confirmed ? "Logged without exposing personal data" : "No phone number or full name shown"}</div></Card></div></div></div>;
+  return (
+    <div className="space-y-8 animate-fade-up">
+      <div className="section-heading">
+        <MiniLabel tone="teal">Vendor Micro-Swarm</MiniLabel>
+        <h1>No new app. <em>Just the next clear action.</em></h1>
+        <p>A privacy-safe WhatsApp bridge lets local partners confirm schedules without seeing a traveler's private number.</p>
+      </div>
+      
+      <div className="grid gap-6 xl:grid-cols-[0.7fr_1.3fr]">
+        <Card className="vendor-phone-wrap">
+          <div className="vendor-phone">
+            <div className="phone-notch" />
+            
+            <div className="flex items-center gap-3 border-b border-ink/8 bg-paper px-4 py-4">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-saffron/15 text-saffron">
+                <Store size={16} />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-ink">Local Store</p>
+                <p className="mt-0.5 flex items-center gap-1 text-[10px] text-moss">
+                  <span className="h-1.5 w-1.5 rounded-full bg-moss" /> WhatsApp business
+                </p>
+              </div>
+              <MoreHorizontal size={17} className="text-ink-muted" />
+            </div>
+            
+            <div className="flex-1 space-y-4 bg-[#e9efe9] p-4">
+              <div className="mx-auto w-fit rounded-full bg-paper/70 px-3 py-1 text-[10px] font-bold text-ink-muted">
+                Today · Privacy Relay
+              </div>
+              
+              <div className="chat-bubble chat-bubble-in">
+                <p className="text-xs leading-5 text-ink">
+                  New order request from <strong>Customer #TRV-8029</strong>:<br /><br />
+                  <strong>Items ready for pickup</strong><br />
+                  Arrival in 15 mins<br />
+                  System fixed rate: <strong>₹120</strong>
+                </p>
+                <div className="mt-3 flex items-center gap-1.5 rounded-lg bg-teal/8 px-2 py-2 text-[10px] font-bold text-teal">
+                  <LockKeyhole size={12} /> Traveler number hidden
+                </div>
+                <span className="mt-2 block text-[10px] text-ink-muted">11:42 AM · delivered</span>
+              </div>
+              
+              {confirmed ? (
+                <div className="chat-bubble chat-bubble-out">
+                  <p className="text-xs leading-5 text-ink">Confirmed. We'll have it ready.</p>
+                  <span className="mt-2 block text-[10px] text-ink-muted">11:43 AM · seen</span>
+                </div>
+              ) : declined ? (
+                <div className="chat-bubble chat-bubble-out">
+                  <p className="text-xs leading-5 text-ink">Can't fulfil this request today.</p>
+                  <span className="mt-2 block text-[10px] text-ink-muted">11:43 AM · sent</span>
+                  <button type="button" onClick={() => setDeclined(false)} className="mt-3 text-[10px] font-bold text-teal">
+                    Reopen request
+                  </button>
+                </div>
+              ) : (
+                <div className="chat-bubble chat-bubble-in">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-saffron/12 text-saffron">
+                      <TicketCheck size={15} />
+                    </span>
+                    <div>
+                      <strong className="block text-xs text-ink">Digital QR Voucher</strong>
+                      <span className="text-[10px] text-ink-muted">Fixed menu rate · ₹120</span>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <button type="button" onClick={onConfirm} className="flex-1 rounded-lg bg-moss px-3 py-2 text-[10px] font-bold text-white">
+                      Confirm
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => { 
+                        setDeclined(true); 
+                        toast.info("Decline logged · operator notified"); 
+                      }} 
+                      className="flex-1 rounded-lg border border-ink/10 bg-paper px-3 py-2 text-[10px] font-bold text-ink-muted"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="border-t border-ink/8 bg-paper px-4 py-3">
+              <div className="flex items-center gap-2 rounded-xl bg-paper-dark px-3 py-2 text-xs text-ink-muted">
+                <span className="flex-1">Message</span>
+                <Send size={14} className="text-teal" />
+              </div>
+            </div>
+          </div>
+        </Card>
+        
+        <div className="space-y-5">
+          <Card className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <MiniLabel tone="teal">Privacy-preserving bridge</MiniLabel>
+                <h2 className="mt-2 font-display text-2xl font-semibold tracking-tighter">The relay keeps trust visible.</h2>
+              </div>
+              <ShieldCheck size={23} className="text-teal" />
+            </div>
+            
+            <div className="mt-6 space-y-3">
+              {[
+                { icon: LockKeyhole, title: "Anonymized proxy ID", copy: "Customer #TRV-8029 replaces personal details." },
+                { icon: IndianRupee, title: "Fixed transparent rate", copy: "₹120 is attached to the voucher before arrival." },
+                { icon: Activity, title: "Operator audit log", copy: confirmed ? "Confirmed · 11:43 AM · response time 1m" : "Waiting for vendor confirmation · alert at 10m" }
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.title} className="flex items-start gap-3 rounded-xl bg-paper-dark p-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal/10 text-teal">
+                      <Icon size={15} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-ink">{item.title}</p>
+                      <p className="mt-1 text-xs leading-5 text-ink-muted">{item.copy}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+          
+          <Card className={cn("p-6", confirmed ? "border-moss/20 bg-moss/5" : "border-saffron/18 bg-saffron/5")}>
+            <div className="flex items-center gap-3">
+              <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", confirmed ? "bg-moss/12 text-moss" : "bg-saffron/12 text-saffron")}>
+                {confirmed ? <CheckCircle2 size={18} /> : <Timer size={18} />}
+              </div>
+              <div>
+                <MiniLabel tone={confirmed ? "green" : "saffron"}>Command center sync</MiniLabel>
+                <p className="mt-1 text-sm font-bold text-ink">{confirmed ? "Traveler pass updated" : "Confirmation pending"}</p>
+              </div>
+            </div>
+            <div className="mt-5 flex items-center gap-2 text-xs text-ink-muted">
+              <span className={cn("h-2 w-2 rounded-full", confirmed ? "bg-moss" : "bg-saffron")} />
+              {confirmed ? "Logged without exposing personal data" : "No phone number or full name shown"}
+            </div>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
 }
+
+// =============================================================================
+// MAIN HOME COMPONENT
+// =============================================================================
 
 const BASE_TRIP_PRICE = 47800;
 const LOCAL_STOP_PRICE = 240;
@@ -1750,6 +3449,17 @@ export default function Home() {
   const [vendorConfirmed, setVendorConfirmed] = useState(false);
   const [resolved, setResolved] = useState(false);
   const [resolutionKey, setResolutionKey] = useState("A");
+  const [isConfirmingAll, setIsConfirmingAll] = useState(false);
+  const [isResolving, setIsResolving] = useState(false);
+
+  // Vendor state
+  const [vendors, setVendors] = useState<VendorConfirmation[]>([
+    { id: 'hotel', name: 'Kesar Bagh Haveli', type: 'hotel', icon: Hotel, status: 'pending', price: 14200 },
+    { id: 'driver', name: 'Driver · Rajesh K.', type: 'driver', icon: Car, status: 'pending', price: 18400 },
+    { id: 'guide', name: 'Amber Fort Guide', type: 'guide', icon: Compass, status: 'pending', price: 2800 },
+    { id: 'vendor', name: 'Sharma Ji Samosa Hub', type: 'vendor', icon: Store, status: 'pending', price: 120 },
+    { id: 'activity', name: 'Local Food Experience', type: 'activity', icon: UsersRound, status: 'pending', price: 3500 },
+  ]);
 
   // Update tripTotal when POIs are added
   useEffect(() => {
@@ -1762,6 +3472,55 @@ export default function Home() {
     if (addedStop) return;
     setAddedStop(true);
     toast.success("Local stop added to route · +₹240");
+  };
+
+  // Vendor confirmation handlers
+  const handleConfirmVendor = (id: string) => {
+    setVendors(prev => prev.map(v => 
+      v.id === id && v.status === 'pending' 
+        ? { ...v, status: 'confirming' } 
+        : v
+    ));
+    
+    setTimeout(() => {
+      setVendors(prev => prev.map(v => 
+        v.id === id && v.status === 'confirming'
+          ? { ...v, status: 'confirmed' }
+          : v
+      ));
+      toast.success(`${vendors.find(v => v.id === id)?.name} confirmed!`);
+    }, 800 + Math.random() * 600);
+  };
+
+  const handleConfirmAll = () => {
+    setIsConfirmingAll(true);
+    const pendingVendors = vendors.filter(v => v.status === 'pending');
+    
+    pendingVendors.forEach((vendor, index) => {
+      setTimeout(() => {
+        handleConfirmVendor(vendor.id);
+      }, index * 600 + 300);
+    });
+    
+    setTimeout(() => {
+      setIsConfirmingAll(false);
+      toast.success("All vendors confirmed!");
+    }, pendingVendors.length * 600 + 1000);
+  };
+
+  // Ripple Engine handlers
+  const handleResolve = (key: string) => {
+    setIsResolving(true);
+    setResolutionKey(key);
+    
+    // Simulate cascade resolution
+    setTimeout(() => {
+      setVendors(prev => prev.map(v => ({ ...v, status: 'confirmed' })));
+      setResolved(true);
+      setIsResolving(false);
+      setStep(6);
+      toast.success(`Ripple resolved with Option ${key}!`);
+    }, 3000);
   };
 
   const modeMeta = useMemo(() => ({
@@ -1794,9 +3553,18 @@ export default function Home() {
     setAdults(2);
     setChildrenCount(0);
     setInfants(0);
+    setVendors([
+      { id: 'hotel', name: 'Kesar Bagh Haveli', type: 'hotel', icon: Hotel, status: 'pending', price: 14200 },
+      { id: 'driver', name: 'Driver · Rajesh K.', type: 'driver', icon: Car, status: 'pending', price: 18400 },
+      { id: 'guide', name: 'Amber Fort Guide', type: 'guide', icon: Compass, status: 'pending', price: 2800 },
+      { id: 'vendor', name: 'Sharma Ji Samosa Hub', type: 'vendor', icon: Store, status: 'pending', price: 120 },
+      { id: 'activity', name: 'Local Food Experience', type: 'activity', icon: UsersRound, status: 'pending', price: 3500 },
+    ]);
+    setIsConfirmingAll(false);
+    setIsResolving(false);
   };
+  
   const openAdapt = () => setStep(5);
-  const resolve = (key = "A") => { setResolutionKey(key); setResolved(true); setStep(6); };
 
   return (
     <div className="min-h-screen bg-paper text-ink">
@@ -1809,9 +3577,10 @@ export default function Home() {
               <p className="eyebrow text-teal">{modeMeta[mode].eyebrow}</p>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-muted">{modeMeta[mode].copy}</p>
             </div>
-            
           </div>
+          
           {mode === "traveler" && <ProgressRail step={step} />}
+          
           {mode === "traveler" ? (
             <TravelerView
               step={step}
@@ -1838,7 +3607,7 @@ export default function Home() {
               setUpgraded={setUpgraded}
               vendorConfirmed={vendorConfirmed}
               onAdapt={openAdapt}
-              onResolve={resolve}
+              onResolve={handleResolve}
               resolved={resolved}
               resolutionKey={resolutionKey}
               adults={adults}
@@ -1857,9 +3626,18 @@ export default function Home() {
               setChatMessages={setChatMessages}
               chatTyping={chatTyping}
               setChatTyping={setChatTyping}
+              vendors={vendors}
+              onConfirmVendor={handleConfirmVendor}
+              onConfirmAll={handleConfirmAll}
+              isConfirmingAll={isConfirmingAll}
+              isResolving={isResolving}
             />
           ) : mode === "operator" ? (
-            <OperatorDashboard resolved={resolved} onResolve={() => setResolved(true)} />
+            <OperatorDashboard 
+              resolved={resolved} 
+              onResolve={() => setResolved(true)} 
+              vendors={vendors}
+            />
           ) : (
             <VendorView confirmed={vendorConfirmed} onConfirm={() => setVendorConfirmed(true)} />
           )}
