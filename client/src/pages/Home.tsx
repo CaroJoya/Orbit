@@ -1,4 +1,5 @@
-// client/src/pages/Home.tsx
+// client/src/pages/Home.tsx - COMPLETE UPDATED FILE
+
 /*
  * Atlas Editorial design reminder for this page:
  * This is a frontend-only product visualization. Treat the route as the protagonist,
@@ -30,9 +31,10 @@ import {
   CloudRain,
   Compass,
   Copy,
-  Download,
   CreditCard,
+  Download,
   FileCheck2,
+  FileText,
   Flag,
   Gauge,
   Headphones,
@@ -53,6 +55,7 @@ import {
   Route,
   Send,
   ShieldCheck,
+  Smartphone,
   Sparkles,
   Star,
   Store,
@@ -73,9 +76,7 @@ import {
   Clock,
   CheckCheck,
   Loader2,
-  Smartphone,
   QrCode,
-  Zap as ZapIcon,
   Workflow,
   GitBranch,
   GitCommit,
@@ -90,7 +91,6 @@ import {
   Smile,
   MoreVertical,
   Wifi,
-  // Parking,  // ← REMOVE THIS LINE
   Coffee,
   Utensils,
   Dumbbell,
@@ -108,7 +108,6 @@ import {
   Users,
   Briefcase,
   Heart,
-  Star as StarIcon,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -123,16 +122,65 @@ import {
 } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { RouteRadarMap, POI } from "@/components/RouteRadarMap";
+import { RouteRadarMap, POI, generatePOIsForRoute, resolveDestinationCoordinates } from "@/components/RouteRadarMap";
 import { Logo } from "@/components/Logo";
 import { format } from "date-fns";
 
 type Mode = "traveler" | "operator" | "vendor";
 type TravelerStep = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
+// =============================================================================
+// INTERFACES
+// =============================================================================
+
+interface VendorConfirmation {
+  id: string;
+  name: string;
+  type: 'hotel' | 'driver' | 'guide' | 'activity' | 'vendor';
+  icon: React.ElementType;
+  status: 'pending' | 'confirming' | 'confirmed' | 'declined';
+  responseTime?: string;
+  price?: number;
+}
+
+interface PaymentMethod {
+  id: string;
+  name: string;
+  icon: React.ElementType;
+  description: string;
+}
+
+interface PaymentConfirmation {
+  method: string;
+  timestamp: string;
+  transactionId: string;
+  amount: number;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+}
+
+interface RoutePlan {
+  destination: string;
+  origin: string;
+  localStop: string;
+  scenicStop: string;
+  hotel: string;
+  distance: string;
+  driveTime: string;
+}
+
+type PickupMode = "home" | "hotel" | "custom";
+type ChatMessage = { id: string; role: "user" | "assistant"; text: string };
+
+// =============================================================================
+// CONSTANTS
+// =============================================================================
+
 const imageReference = "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=85";
 const mapImage = "https://images.unsplash.com/photo-1454496522488-7a8e488e8606?auto=format&fit=crop&w=1600&q=85";
 const stopImage = "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=1200&q=85";
+
+const BASE_TRIP_PRICE = 47800;
+const LOCAL_STOP_PRICE = 240;
 
 // Destination images mapping
 const destinationImages: Record<string, string> = {
@@ -161,86 +209,6 @@ function getDestinationImage(destination: string): string {
   return match ? destinationImages[match] : destinationImages.default;
 }
 
-// Travel Service Options
-const travelServices = [
-  { id: "flights", label: "Flights", icon: Plane, color: "text-teal" },
-  { id: "hotels", label: "Hotels", icon: Hotel, color: "text-saffron" },
-  { id: "homestays", label: "Homestays & Villas", icon: HomeIcon, color: "text-moss" },
-  { id: "packages", label: "Holiday Packages", icon: Package, color: "text-coral" },
-  { id: "trains", label: "Trains", icon: Train, color: "text-amber" },
-  { id: "buses", label: "Buses", icon: Bus, color: "text-teal" },
-  { id: "cabs", label: "Cabs", icon: Car, color: "text-saffron" },
-  { id: "tours", label: "Tours & Attractions", icon: Ticket, color: "text-moss" },
-];
-
-// Suggested Destinations
-const suggestedDestinations = [
-  {
-    id: "goa",
-    name: "Goa",
-    location: "India",
-    image: "https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=800&q=80",
-    description: "Beaches, nightlife & Portuguese heritage",
-    rating: "4.8",
-    price: "From ₹8,999",
-  },
-  {
-    id: "jaipur",
-    name: "Jaipur",
-    location: "Rajasthan, India",
-    image: "https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&w=800&q=80",
-    description: "The Pink City · Palaces & Forts",
-    rating: "4.7",
-    price: "From ₹6,499",
-  },
-  {
-    id: "kerala",
-    name: "Kerala",
-    location: "India",
-    image: "https://images.unsplash.com/photo-1593693411515-c20261bcad6e?auto=format&fit=crop&w=800&q=80",
-    description: "Backwaters, houseboats & tropical greenery",
-    rating: "4.9",
-    price: "From ₹12,999",
-  },
-  {
-    id: "manali",
-    name: "Manali",
-    location: "Himachal Pradesh, India",
-    image: "https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?auto=format&fit=crop&w=800&q=80",
-    description: "Himalayan mountains & adventure sports",
-    rating: "4.6",
-    price: "From ₹7,499",
-  },
-  {
-    id: "udaipur",
-    name: "Udaipur",
-    location: "Rajasthan, India",
-    image: "https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=800&q=80",
-    description: "Lakes, palaces & romantic ambiance",
-    rating: "4.8",
-    price: "From ₹8,999",
-  },
-  {
-    id: "varanasi",
-    name: "Varanasi",
-    location: "Uttar Pradesh, India",
-    image: "https://images.unsplash.com/photo-1561361058-c24cecae35ca?auto=format&fit=crop&w=800&q=80",
-    description: "Spiritual ghats & ancient culture",
-    rating: "4.5",
-    price: "From ₹5,499",
-  },
-];
-
-type RoutePlan = {
-  destination: string;
-  origin: string;
-  localStop: string;
-  scenicStop: string;
-  hotel: string;
-  distance: string;
-  driveTime: string;
-};
-
 function createRoutePlan(destination: string): RoutePlan {
   const cleanDestination = destination.trim() || "Your destination";
   const origin = cleanDestination.split(',')[0].trim();
@@ -265,32 +233,6 @@ const journey = [
   { label: "Complete", short: "07" },
 ];
 
-const styleCards = [
-  { label: "Local Street Food", icon: Store, color: "bg-saffron/12 text-saffron" },
-  { label: "Scenic Drives", icon: Route, color: "bg-teal/12 text-teal" },
-  { label: "Culture & History", icon: MapPin, color: "bg-ink/8 text-ink" },
-  { label: "Thrill", icon: Bike, color: "bg-coral/12 text-coral" },
-  { label: "Relaxed", icon: CoffeeIcon, color: "bg-moss/12 text-moss" },
-  { label: "Adventure", icon: MountainIcon, color: "bg-amber/20 text-amber-dark" },
-  { label: "Family Friendly", icon: UsersRound, color: "bg-teal/8 text-teal" },
-  { label: "Romantic Getaway", icon: HeartIcon, color: "bg-coral/8 text-coral" },
-  { label: "Budget Travel", icon: WalletCards, color: "bg-moss/8 text-moss" },
-  { label: "Luxury", icon: Sparkles, color: "bg-saffron/8 text-saffron" },
-  { label: "Spiritual", icon: Compass, color: "bg-ink/6 text-ink" },
-];
-
-function CoffeeIcon(props: React.ComponentProps<typeof Store>) {
-  return <Store {...props} />;
-}
-
-function MountainIcon(props: React.ComponentProps<typeof Compass>) {
-  return <Compass {...props} />;
-}
-
-function HeartIcon(props: React.ComponentProps<typeof Star>) {
-  return <Star {...props} />;
-}
-
 const navItems = [
   { label: "Intake Canvas", icon: WandSparkles, step: 0 },
   { label: "Route Radar", icon: Navigation, step: 1 },
@@ -300,12 +242,20 @@ const navItems = [
   { label: "Ripple Engine", icon: Zap, step: 5 },
 ];
 
+// =============================================================================
+// UTILITY COMPONENTS
+// =============================================================================
+
 function MiniLabel({ children, tone = "default" }: { children: React.ReactNode; tone?: "default" | "teal" | "amber" | "saffron" | "coral" | "green" }) {
   return (
     <span className={cn("eyebrow", tone === "teal" && "text-teal", tone === "amber" && "text-amber", tone === "saffron" && "text-saffron", tone === "coral" && "text-coral", tone === "green" && "text-moss")}>
       {children}
     </span>
   );
+}
+
+function StatusChip({ children, tone = "neutral" }: { children: React.ReactNode; tone?: "neutral" | "green" | "amber" | "coral" | "teal" }) {
+  return <span className={cn("status-chip", `status-${tone}`)}><span className="status-dot" />{children}</span>;
 }
 
 function Metric({ label, value, sub, icon: Icon, tone = "teal" }: { label: string; value: string; sub: string; icon: React.ElementType; tone?: string }) {
@@ -321,32 +271,63 @@ function Metric({ label, value, sub, icon: Icon, tone = "teal" }: { label: strin
   );
 }
 
-function StatusChip({ children, tone = "neutral" }: { children: React.ReactNode; tone?: "neutral" | "green" | "amber" | "coral" | "teal" }) {
-  return <span className={cn("status-chip", `status-${tone}`)}><span className="status-dot" />{children}</span>;
+function PriceBar({ total, delta }: { total: string; delta?: string }) {
+  return (
+    <div className="sticky bottom-4 z-30 flex items-center justify-between gap-4 rounded-[18px] bg-ink px-5 py-4 text-paper shadow-[0_14px_40px_rgba(23,34,35,0.22)] sm:px-6">
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal/20 text-teal-light"><IndianRupee size={17} /></div>
+        <div><p className="eyebrow text-paper/45">Live trip total</p><p className="mt-1 text-sm text-paper/72">Every choice stays transparent</p></div>
+      </div>
+      <div className="flex items-end gap-3 text-right"><div><p className="text-2xl font-bold tracking-tighter">{total}</p>{delta && <p className="text-xs font-semibold text-teal-light">{delta}</p>}</div><ArrowDownRight size={17} className="mb-1 text-teal-light" /></div>
+    </div>
+  );
 }
 
-function AppHeader({ mode, setMode, onRestart, destination }: { mode: Mode; setMode: (mode: Mode) => void; onRestart: () => void; destination: string }) {
-  const [, setLocation] = useLocation();
+function TravelerCounter({ 
+  label, 
+  value, 
+  onIncrement, 
+  onDecrement, 
+  icon: Icon,
+  min = 0
+}: { 
+  label: string; 
+  value: number; 
+  onIncrement: () => void; 
+  onDecrement: () => void;
+  icon: React.ElementType;
+  min?: number;
+}) {
   return (
-    <header className="sticky top-0 z-40 flex h-19 items-center justify-between border-b border-ink/10 bg-paper/90 px-6 backdrop-blur-xl lg:px-9">
-      <div className="flex items-center gap-3">
-        <Logo className="cursor-pointer" onClick={() => setLocation("/")} />
+    <div className="flex items-center justify-between py-2">
+      <div className="flex items-center gap-2">
+        <Icon size={16} className="text-ink-muted" />
+        <span className="text-sm font-medium text-ink">{label}</span>
       </div>
-      
       <div className="flex items-center gap-3">
-        <div className="mode-switch" role="tablist" aria-label="Demo perspective">
-          {(["traveler", "operator", "vendor"] as Mode[]).map((item) => (
-            <button key={item} type="button" className={cn("mode-tab", mode === item && "mode-tab-active")} onClick={() => setMode(item)}>
-              {item === "traveler" ? <UserRound size={14} /> : item === "operator" ? <BriefcaseBusiness size={14} /> : <MessageCircle size={14} />}
-              <span className="hidden sm:inline">{item}</span>
-            </button>
-          ))}
-        </div>
-        <button type="button" onClick={onRestart} className="icon-button" aria-label="Restart demo"><RefreshCw size={16} /></button>
-        <button type="button" onClick={() => setLocation("/activity")} className="icon-button relative" aria-label="Notifications"><Bell size={16} /><span className="notification-dot" /></button>
-        <button type="button" onClick={() => setLocation("/account")} className="hidden h-9 w-9 items-center justify-center rounded-full bg-ink text-sm font-bold text-paper transition-transform hover:scale-[1.03] sm:flex" aria-label="Open profile">AS</button>
+        <button
+          type="button"
+          onClick={onDecrement}
+          disabled={value <= min}
+          className={cn(
+            "flex h-7 w-7 items-center justify-center rounded-lg border transition-colors",
+            value <= min 
+              ? "border-ink/10 text-ink-muted/40 cursor-not-allowed" 
+              : "border-ink/20 text-ink hover:bg-ink/5"
+          )}
+        >
+          <span className="text-lg leading-none">−</span>
+        </button>
+        <span className="w-6 text-center text-sm font-semibold text-ink">{value}</span>
+        <button
+          type="button"
+          onClick={onIncrement}
+          className="flex h-7 w-7 items-center justify-center rounded-lg border border-ink/20 text-ink hover:bg-ink/5 transition-colors"
+        >
+          <span className="text-lg leading-none">+</span>
+        </button>
       </div>
-    </header>
+    </div>
   );
 }
 
@@ -420,21 +401,35 @@ function ProgressRail({ step }: { step: TravelerStep }) {
   );
 }
 
-function PriceBar({ total, delta }: { total: string; delta?: string }) {
+function AppHeader({ mode, setMode, onRestart, destination }: { mode: Mode; setMode: (mode: Mode) => void; onRestart: () => void; destination: string }) {
+  const [, setLocation] = useLocation();
   return (
-    <div className="sticky bottom-4 z-30 flex items-center justify-between gap-4 rounded-[18px] bg-ink px-5 py-4 text-paper shadow-[0_14px_40px_rgba(23,34,35,0.22)] sm:px-6">
+    <header className="sticky top-0 z-40 flex h-19 items-center justify-between border-b border-ink/10 bg-paper/90 px-6 backdrop-blur-xl lg:px-9">
       <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal/20 text-teal-light"><IndianRupee size={17} /></div>
-        <div><p className="eyebrow text-paper/45">Live trip total</p><p className="mt-1 text-sm text-paper/72">Every choice stays transparent</p></div>
+        <Logo className="cursor-pointer" onClick={() => setLocation("/")} />
       </div>
-      <div className="flex items-end gap-3 text-right"><div><p className="text-2xl font-bold tracking-tighter">{total}</p>{delta && <p className="text-xs font-semibold text-teal-light">{delta}</p>}</div><ArrowDownRight size={17} className="mb-1 text-teal-light" /></div>
-    </div>
+      
+      <div className="flex items-center gap-3">
+        <div className="mode-switch" role="tablist" aria-label="Demo perspective">
+          {(["traveler", "operator", "vendor"] as Mode[]).map((item) => (
+            <button key={item} type="button" className={cn("mode-tab", mode === item && "mode-tab-active")} onClick={() => setMode(item)}>
+              {item === "traveler" ? <UserRound size={14} /> : item === "operator" ? <BriefcaseBusiness size={14} /> : <MessageCircle size={14} />}
+              <span className="hidden sm:inline">{item}</span>
+            </button>
+          ))}
+        </div>
+        <button type="button" onClick={onRestart} className="icon-button" aria-label="Restart demo"><RefreshCw size={16} /></button>
+        <button type="button" onClick={() => setLocation("/activity")} className="icon-button relative" aria-label="Notifications"><Bell size={16} /><span className="notification-dot" /></button>
+        <button type="button" onClick={() => setLocation("/account")} className="hidden h-9 w-9 items-center justify-center rounded-full bg-ink text-sm font-bold text-paper transition-transform hover:scale-[1.03] sm:flex" aria-label="Open profile">AS</button>
+      </div>
+    </header>
   );
 }
 
-type PickupMode = "home" | "hotel" | "custom";
+// =============================================================================
+// DESTINATION AUTOCOMPLETE HOOK
+// =============================================================================
 
-// Destination autocomplete using OpenStreetMap Nominatim API
 function useDestinationAutocomplete() {
   const [suggestions, setSuggestions] = useState<Array<{ display_name: string; lat: string; lon: string }>>([]);
   const [loading, setLoading] = useState(false);
@@ -486,834 +481,580 @@ function useDestinationAutocomplete() {
   return { suggestions, loading, showSuggestions, search, clearSuggestions, setShowSuggestions };
 }
 
-function TravelerCounter({ 
-  label, 
-  value, 
-  onIncrement, 
-  onDecrement, 
-  icon: Icon,
-  min = 0
-}: { 
-  label: string; 
-  value: number; 
-  onIncrement: () => void; 
-  onDecrement: () => void;
-  icon: React.ElementType;
-  min?: number;
+// =============================================================================
+// PAYMENT COMPONENTS
+// =============================================================================
+
+function PaymentMethodSelection({
+  selectedMethod,
+  onSelect,
+  onPay,
+  isProcessing,
+  grandTotal,
+}: {
+  selectedMethod: string | null;
+  onSelect: (methodId: string) => void;
+  onPay: () => void;
+  isProcessing: boolean;
+  grandTotal: number;
 }) {
-  return (
-    <div className="flex items-center justify-between py-2">
-      <div className="flex items-center gap-2">
-        <Icon size={16} className="text-ink-muted" />
-        <span className="text-sm font-medium text-ink">{label}</span>
-      </div>
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onDecrement}
-          disabled={value <= min}
-          className={cn(
-            "flex h-7 w-7 items-center justify-center rounded-lg border transition-colors",
-            value <= min 
-              ? "border-ink/10 text-ink-muted/40 cursor-not-allowed" 
-              : "border-ink/20 text-ink hover:bg-ink/5"
-          )}
-        >
-          <span className="text-lg leading-none">−</span>
-        </button>
-        <span className="w-6 text-center text-sm font-semibold text-ink">{value}</span>
-        <button
-          type="button"
-          onClick={onIncrement}
-          className="flex h-7 w-7 items-center justify-center rounded-lg border border-ink/20 text-ink hover:bg-ink/5 transition-colors"
-        >
-          <span className="text-lg leading-none">+</span>
-        </button>
-      </div>
-    </div>
-  );
-}
+  const paymentMethods: PaymentMethod[] = [
+    { 
+      id: 'card', 
+      name: 'Credit / Debit Card', 
+      icon: CreditCard,
+      description: 'Visa, Mastercard, RuPay accepted'
+    },
+    { 
+      id: 'upi', 
+      name: 'UPI', 
+      icon: Smartphone,
+      description: 'Google Pay, PhonePe, Paytm'
+    },
+    { 
+      id: 'netbanking', 
+      name: 'Net Banking', 
+      icon: WalletCards,
+      description: 'All major banks'
+    },
+    { 
+      id: 'wallet', 
+      name: 'Wallet', 
+      icon: WalletCards,
+      description: 'Paytm, Amazon Pay, Ola Money'
+    },
+  ];
 
-// ============== NEW COMPONENTS ==============
-
-// Travel Services Section
-function TravelServicesSection({ onServiceClick }: { onServiceClick?: (serviceId: string) => void }) {
   return (
-    <div className="mb-10">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <MiniLabel tone="teal">Explore</MiniLabel>
-          <h3 className="mt-1 font-display text-xl font-semibold tracking-tighter text-ink">Plan your journey</h3>
-        </div>
-        <span className="text-xs text-ink-muted">8 services</span>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="field-label">Select Payment Method</p>
+        <span className="text-xs font-bold text-teal">Secure</span>
       </div>
       
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3">
-        {travelServices.map((service) => {
-          const Icon = service.icon;
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {paymentMethods.map((method) => {
+          const Icon = method.icon;
+          const isSelected = selectedMethod === method.id;
           return (
             <button
-              key={service.id}
+              key={method.id}
               type="button"
-              onClick={() => {
-                onServiceClick?.(service.id);
-                toast.info(`${service.label} service opened`);
-              }}
-              className="group flex flex-col items-center gap-2 rounded-2xl border border-ink/8 bg-paper/60 p-4 transition-all duration-200 hover:border-teal/30 hover:bg-paper hover:shadow-[0_8px_24px_rgba(13,148,136,0.08)] hover:-translate-y-0.5"
+              onClick={() => onSelect(method.id)}
+              className={cn(
+                "flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-all duration-200",
+                isSelected 
+                  ? "border-teal/40 bg-teal/5 shadow-[0_0_0_4px_rgba(13,148,136,0.1)]" 
+                  : "border-ink/10 hover:border-teal/20",
+                isProcessing && "opacity-50 cursor-not-allowed"
+              )}
+              disabled={isProcessing}
             >
               <div className={cn(
-                "flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-200",
-                "bg-ink/5 group-hover:bg-teal/10 group-hover:scale-105",
-                service.color
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+                isSelected ? "bg-teal/10 text-teal" : "bg-ink/5 text-ink-muted"
               )}>
-                <Icon size={20} strokeWidth={1.8} />
+                <Icon size={18} />
               </div>
-              <span className="text-[11px] font-semibold text-ink/80 text-center leading-tight group-hover:text-ink">
-                {service.label}
-              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-ink">{method.name}</p>
+                <p className="text-[10px] text-ink-muted">{method.description}</p>
+              </div>
+              {isSelected && (
+                <CheckCircle2 size={16} className="text-teal shrink-0" />
+              )}
             </button>
           );
         })}
       </div>
-    </div>
-  );
-}
-
-// Suggested Destinations Section
-function SuggestedDestinationsSection({ onDestinationClick }: { onDestinationClick?: (destination: string) => void }) {
-  return (
-    <div className="mb-10">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <MiniLabel tone="saffron">Trending Destinations</MiniLabel>
-          <h3 className="mt-1 font-display text-xl font-semibold tracking-tighter text-ink">Popular places to visit</h3>
-        </div>
-        <button 
-          type="button" 
-          onClick={() => toast.info("View all destinations")}
-          className="text-xs font-bold text-teal hover:underline flex items-center gap-1"
-        >
-          See all <ArrowRight size={13} />
-        </button>
-      </div>
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {suggestedDestinations.map((destination) => (
-          <button
-            key={destination.id}
-            type="button"
-            onClick={() => {
-              onDestinationClick?.(destination.name);
-              toast.info(`Exploring ${destination.name}`);
-            }}
-            className="group relative overflow-hidden rounded-2xl aspect-4/3 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_12px_32px_rgba(0,0,0,0.15)] focus-visible:ring-2 focus-visible:ring-teal"
-          >
-            <img 
-              src={destination.image} 
-              alt={destination.name}
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-            />
-            <div className="absolute inset-0 bg-linear-to-t from-ink/85 via-ink/30 to-transparent" />
-            
-            {/* Rating and price badge */}
-            <div className="absolute top-3 right-3 flex items-center gap-1.5 rounded-full bg-ink/70 backdrop-blur-sm px-2.5 py-1">
-              <Star size={10} className="fill-saffron text-saffron" />
-              <span className="text-[10px] font-bold text-white">{destination.rating}</span>
-            </div>
-            
-            {/* Content overlay */}
-            <div className="absolute bottom-0 left-0 right-0 p-3 text-left">
-              <h4 className="text-sm font-bold text-white leading-tight">{destination.name}</h4>
-              <p className="mt-0.5 text-[10px] text-white/75 leading-tight">{destination.location}</p>
-              <p className="mt-0.5 text-[9px] text-white/60 leading-tight line-clamp-1">{destination.description}</p>
-              <div className="mt-1.5 flex items-center justify-between">
-                <span className="text-[10px] font-semibold text-teal-light">{destination.price}</span>
-                <span className="text-[9px] text-white/40">→</span>
-              </div>
-            </div>
-          </button>
-        ))}
-      </div>
+      <Button
+        onClick={onPay}
+        disabled={!selectedMethod || isProcessing}
+        className={cn(
+          "mt-2 h-12 w-full rounded-xl font-bold text-white transition-all",
+          selectedMethod && !isProcessing
+            ? "bg-teal hover:bg-teal-dark shadow-[0_8px_24px_rgba(13,148,136,0.2)]"
+            : "bg-ink/20 text-ink-muted/50 cursor-not-allowed"
+        )}
+      >
+        {isProcessing ? (
+          <><Loader2 size={18} className="mr-2 animate-spin" /> Processing Payment...</>
+        ) : (
+          <><CreditCard size={18} className="mr-2" /> Pay ₹{grandTotal.toLocaleString("en-IN")}</>
+        )}
+      </Button>
+      
+      <p className="text-center text-[10px] text-ink-muted/60 flex items-center justify-center gap-1">
+        <LockKeyhole size={12} />
+        Secure payment · No card details stored
+      </p>
     </div>
   );
 }
 
-// ============== END NEW COMPONENTS ==============
-
-// =============================================================================
-// CHECKOUT TAB ENHANCEMENTS
-// =============================================================================
-
-interface VendorConfirmation {
-  id: string;
-  name: string;
-  type: 'hotel' | 'driver' | 'guide' | 'activity' | 'vendor';
-  icon: React.ElementType;
-  status: 'pending' | 'confirming' | 'confirmed' | 'declined';
-  responseTime?: string;
-  price?: number;
-}
-
-function VendorConfirmationList({ 
-  vendors, 
-  onConfirmAll, 
-  onConfirmVendor,
-  isConfirmingAll 
-}: { 
-  vendors: VendorConfirmation[];
-  onConfirmAll: () => void;
-  onConfirmVendor: (id: string) => void;
-  isConfirmingAll: boolean;
+function PaymentConfirmationScreen({
+  confirmation,
+  onComplete,
+}: {
+  confirmation: PaymentConfirmation;
+  onComplete: () => void;
 }) {
-  const allConfirmed = vendors.every(v => v.status === 'confirmed');
-  const allPending = vendors.every(v => v.status === 'pending');
+  const [showReceipt, setShowReceipt] = useState(false);
   
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="field-label">Vendor Confirmations</p>
-        <Button
-          onClick={onConfirmAll}
-          disabled={isConfirmingAll || allConfirmed}
-          size="sm"
-          className={cn(
-            "h-8 rounded-lg text-xs font-bold",
-            allConfirmed ? "bg-moss text-white" : "bg-teal text-white hover:bg-teal-dark"
-          )}
-        >
-          {isConfirmingAll ? (
-            <><Loader2 size={14} className="mr-1.5 animate-spin" /> Confirming...</>
-          ) : allConfirmed ? (
-            <><Check size={14} className="mr-1.5" /> All Confirmed</>
-          ) : (
-            <>Confirm All</>
-          )}
-        </Button>
+    <div className="space-y-6 animate-fade-up">
+      <div className="flex flex-col items-center text-center">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-moss/10 text-moss">
+          <CheckCircle2 size={40} />
+        </div>
+        <h2 className="mt-4 font-display text-2xl font-semibold tracking-tighter">Payment Successful!</h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          Your trip is confirmed. Transaction ID: {confirmation.transactionId}
+        </p>
       </div>
       
-      <div className="space-y-2">
-        {vendors.map((vendor) => {
-          const Icon = vendor.icon;
-          const isConfirmed = vendor.status === 'confirmed';
-          const isPending = vendor.status === 'pending';
-          const isConfirming = vendor.status === 'confirming';
-          const isDeclined = vendor.status === 'declined';
+      <Card className="p-5 border-moss/20 bg-moss/5">
+        <div className="space-y-3">
+          <div className="flex justify-between text-sm">
+            <span className="text-ink-muted">Amount Paid</span>
+            <span className="font-bold text-ink">₹{confirmation.amount.toLocaleString("en-IN")}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-ink-muted">Payment Method</span>
+            <span className="font-semibold text-ink capitalize">{confirmation.method}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-ink-muted">Transaction ID</span>
+            <span className="font-mono text-xs text-ink">{confirmation.transactionId}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-ink-muted">Date & Time</span>
+            <span className="text-ink">{format(new Date(confirmation.timestamp), "dd MMM yyyy, hh:mm a")}</span>
+          </div>
+        </div>
+      </Card>
+      
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Button
+          onClick={() => setShowReceipt(!showReceipt)}
+          variant="outline"
+          className="flex-1 h-11 rounded-xl border-ink/12 font-bold text-ink hover:bg-paper-dark"
+        >
+          <FileText size={16} className="mr-2" />
+          {showReceipt ? "Hide Receipt" : "View Receipt"}
+        </Button>
+        <Button
+  onClick={() => {
+    // Create receipt data
+    const receiptData = `
+ORBIT TRIP CONFIRMATION
+========================
+Booking: ${confirmation.transactionId}
+Date: ${format(new Date(confirmation.timestamp), "dd MMM yyyy, hh:mm a")}
+Amount: ₹${confirmation.amount.toLocaleString("en-IN")}
+Payment: ${confirmation.method}
+Status: ${confirmation.status}
+
+Trip Details:
+- Destination: Jaipur, Rajasthan
+- Dates: 12-14 Feb 2026
+- Traveler: Aanya Sharma
+
+Thank you for choosing Orbit! 🌏
+    `.trim();
+
+    // Create and download file
+    const blob = new Blob([receiptData], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `receipt-${confirmation.transactionId}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast.success("Receipt downloaded!");
+  }}
+  className="flex-1 h-11 rounded-xl bg-teal font-bold text-white hover:bg-teal-dark"
+>
+  <Download size={16} className="mr-2" />
+  Download Confirmation
+</Button>
+      </div>
+      
+      {showReceipt && (
+        <Card className="p-5 border-ink/8 animate-fade-up">
+          <div className="space-y-2 text-xs">
+            <div className="flex justify-between">
+              <span className="text-ink-muted">Booking Reference</span>
+              <span className="font-mono font-bold">{confirmation.transactionId.slice(0, 12)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-ink-muted">Status</span>
+              <span className="text-moss font-bold">✓ Confirmed</span>
+            </div>
+            <div className="border-t border-ink/8 pt-2">
+              <p className="text-center text-ink-muted/60">Thank you for choosing Orbit. Safe travels! 🌏</p>
+            </div>
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// CHECKOUT COMPONENT WITH PAYMENT INTEGRATION
+// =============================================================================
+
+function Checkout({ 
+  addedStop, 
+  upgraded, 
+  onNext,
+  vendors,
+  onConfirmVendor,
+  onConfirmAll,
+  isConfirmingAll,
+  arrivalTime,
+  selectedPaymentMethod,
+  onSelectPaymentMethod,
+  onPay,
+  isProcessingPayment,
+  paymentConfirmation,
+  showPaymentConfirmation,
+  setVendors,
+}: { 
+  addedStop: boolean; 
+  upgraded: boolean; 
+  onNext: () => void;
+  vendors: VendorConfirmation[];
+  onConfirmVendor: (id: string) => void;
+  onConfirmAll: () => void;
+  isConfirmingAll: boolean;
+  arrivalTime?: string;
+  selectedPaymentMethod: string | null;
+  onSelectPaymentMethod: (method: string) => void;
+  onPay: () => void;
+  isProcessingPayment: boolean;
+  paymentConfirmation: PaymentConfirmation | null;
+  showPaymentConfirmation: boolean;
+  setVendors: React.Dispatch<React.SetStateAction<VendorConfirmation[]>>;
+}) {
+  const checks = ["Travel distance within daily limit", "Activity timing compatible with route", "Hotel check-in time achievable", "Driver rest buffer preserved", "Vendor availability confirmed"];
+  const hotelsPrice = upgraded ? 14200 : 13000;
+  const transportPrice = 18400;
+  const activitiesPrice = 12400;
+  const servicePrice = 4000;
+  const localStopPrice = addedStop ? 240 : 0;
+  const grandTotal = hotelsPrice + transportPrice + activitiesPrice + servicePrice + localStopPrice;
+  
+  const allVendorsConfirmed = vendors.every(v => v.status === 'confirmed');
+  const pendingVendors = vendors.filter(v => v.status === 'pending');
+  
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState<string | null>(null);
+  
+  const handleRemoveVendor = (id: string) => {
+    setVendors(prev => prev.filter(v => v.id !== id));
+    setShowRemoveConfirm(null);
+    toast.success("Vendor removed from trip");
+  };
+  
+  if (showPaymentConfirmation && paymentConfirmation) {
+    return (
+      <div className="space-y-8 animate-fade-up">
+        <div className="section-heading">
+          <MiniLabel tone="teal">04 / Payment Confirmation</MiniLabel>
+          <h1>Payment <em>completed.</em></h1>
+          <p>Your trip is now confirmed. You'll receive a detailed itinerary shortly.</p>
+        </div>
+        <PaymentConfirmationScreen 
+          confirmation={paymentConfirmation}
+          onComplete={onNext}
+        />
+      </div>
+    );
+  }
+  
+  return (
+    <div className="space-y-8 animate-fade-up">
+      <div className="section-heading">
+        <MiniLabel tone="teal">04 / Checkout</MiniLabel>
+        <h1>Everything aligned. <em>One calm checkout.</em></h1>
+        <p>A single view of every commitment before the route becomes real.</p>
+      </div>
+      
+      <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
+        <div className="space-y-6">
+          <Card className="p-6">
+            <div className="flex items-center justify-between border-b border-ink/8 pb-5">
+              <div>
+                <p className="eyebrow text-ink-muted">Feasibility check</p>
+                <h2 className="mt-2 font-display text-2xl font-semibold tracking-tighter">The route is holding.</h2>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-moss/10 text-moss">
+                <CheckCircle2 size={23} />
+              </div>
+            </div>
+            
+            <div className="mt-6 space-y-3">
+              {checks.map((check, index) => (
+                <div key={check} className="flex items-center gap-3 rounded-xl bg-paper-dark px-4 py-3">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-moss/12 text-moss">
+                    <Check size={13} />
+                  </span>
+                  <span className="text-sm text-ink/78">{check}</span>
+                  <span className="ml-auto text-[10px] font-bold uppercase tracking-[0.12em] text-moss">Passed</span>
+                </div>
+              ))}
+            </div>
+          </Card>
           
-          return (
-            <div 
-              key={vendor.id} 
-              className={cn(
-                "flex items-center gap-3 rounded-xl border px-4 py-3 transition-all duration-300",
-                isConfirmed ? "border-moss/20 bg-moss/5" : "border-ink/8 bg-paper-dark/50",
-                isConfirming && "border-amber/20 bg-amber/5"
-              )}
-            >
-              <div className={cn(
-                "flex h-8 w-8 items-center justify-center rounded-lg",
-                isConfirmed ? "bg-moss/10 text-moss" : "bg-ink/5 text-ink-muted"
-              )}>
-                <Icon size={15} />
+          <Card className="p-6">
+            <div className="flex items-center justify-between border-b border-ink/8 pb-5">
+              <div>
+                <p className="eyebrow text-ink-muted">Vendor Confirmations</p>
+                <p className="mt-1 text-xs text-ink-muted">
+                  {allVendorsConfirmed ? "All vendors confirmed ✓" : `${pendingVendors.length} vendor${pendingVendors.length > 1 ? 's' : ''} pending`}
+                </p>
               </div>
-              
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-ink">{vendor.name}</p>
-                <p className="text-[10px] text-ink-muted capitalize">{vendor.type}</p>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                {vendor.price && (
-                  <span className="text-xs font-semibold text-ink">₹{vendor.price}</span>
-                )}
-                
-                {isConfirmed ? (
-                  <span className="flex items-center gap-1 text-xs font-bold text-moss">
-                    <CheckCircle2 size={14} /> Confirmed
-                  </span>
-                ) : isConfirming ? (
-                  <span className="flex items-center gap-1 text-xs font-bold text-amber">
-                    <Loader2 size={14} className="animate-spin" /> Confirming...
-                  </span>
-                ) : isDeclined ? (
-                  <span className="text-xs font-bold text-coral">Declined</span>
-                ) : (
+              <div className="flex gap-2">
+                {!allVendorsConfirmed && pendingVendors.length > 0 && (
                   <Button
-                    onClick={() => onConfirmVendor(vendor.id)}
+                    onClick={onConfirmAll}
+                    disabled={isConfirmingAll}
                     size="sm"
-                    variant="outline"
-                    className="h-7 rounded-lg border-teal/30 px-3 text-xs font-bold text-teal hover:bg-teal/5"
+                    className="h-8 rounded-lg bg-teal text-xs font-bold text-white hover:bg-teal-dark"
                   >
-                    Confirm
+                    {isConfirmingAll ? (
+                      <><Loader2 size={14} className="mr-1.5 animate-spin" /> Confirming...</>
+                    ) : (
+                      <>Confirm All</>
+                    )}
                   </Button>
                 )}
               </div>
             </div>
-          );
-        })}
-      </div>
-      
-      {allConfirmed && (
-        <div className="rounded-xl bg-moss/10 p-3 text-center text-xs font-bold text-moss animate-fade-up">
-          <CheckCircle2 size={16} className="inline mr-2" />
-          All vendors confirmed! Your trip is ready.
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TimingCompatibility({ vendors, arrivalTime = "17:30" }: { vendors: VendorConfirmation[]; arrivalTime?: string }) {
-  const allConfirmed = vendors.every(v => v.status === 'confirmed');
-  const checkInTime = "17:30";
-  const bufferTime = "45 min";
-  const driverRest = "2.5 hours";
-  
-  return (
-    <div className={cn(
-      "rounded-2xl border p-4 transition-all duration-500",
-      allConfirmed ? "border-teal/20 bg-teal/5" : "border-amber/20 bg-amber/5"
-    )}>
-      <p className="text-xs font-bold text-ink">Timing Compatibility</p>
-      
-      <div className="mt-3 space-y-2">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-ink-muted">Hotel Check-in</span>
-          <div className="flex items-center gap-2">
-            <span className="font-semibold">{checkInTime}</span>
-            <span className={cn(
-              "text-xs font-bold",
-              allConfirmed ? "text-moss" : "text-amber"
-            )}>
-              {allConfirmed ? "✓ Achievable" : "⏳ Pending"}
-            </span>
-          </div>
-        </div>
-        
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-ink-muted">Arrival Buffer</span>
-          <div className="flex items-center gap-2">
-            <span className="font-semibold">{bufferTime}</span>
-            <span className="text-xs font-bold text-moss">✓ Preserved</span>
-          </div>
-        </div>
-        
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-ink-muted">Driver Rest</span>
-          <div className="flex items-center gap-2">
-            <span className="font-semibold">{driverRest}</span>
-            <span className="text-xs font-bold text-moss">✓ Protected</span>
-          </div>
-        </div>
-      </div>
-      
-      {allConfirmed && (
-        <div className="mt-3 flex items-center gap-2 rounded-lg bg-teal/10 px-3 py-2 text-xs text-teal animate-fade-up">
-          <Clock size={14} />
-          All timing checks passed. Route is feasible.
-        </div>
-      )}
-    </div>
-  );
-}
-
-// =============================================================================
-// DIGITAL PASS ENHANCEMENTS - WhatsApp Chat Simulator
-// =============================================================================
-
-type ChatMessageType = {
-  id: string;
-  sender: 'user' | 'vendor';
-  text: string;
-  timestamp: string;
-  isDelivered?: boolean;
-  isSeen?: boolean;
-  isVoucher?: boolean;
-};
-
-type VendorChatState = {
-  vendorName: string;
-  vendorId: string;
-  vendorIcon: string;
-  isOnline: boolean;
-  lastSeen: string;
-  messages: ChatMessageType[];
-  isTyping: boolean;
-  confirmationStatus: 'pending' | 'confirmed' | 'declined';
-};
-
-const VENDOR_CHAT_RESPONSES: Record<string, (msg: string) => string> = {
-  default: (msg: string) => {
-    const lower = msg.toLowerCase();
-    if (lower.includes('hi') || lower.includes('hello') || lower.includes('hey')) {
-      return "Hello! 👋 How can I help you with your order?";
-    }
-    if (lower.includes('price') || lower.includes('cost') || lower.includes('₹') || lower.includes('rate')) {
-      return "Our fixed rate is ₹120 for the item. We maintain transparent pricing for all our customers. 🏷️";
-    }
-    if (lower.includes('time') || lower.includes('when') || lower.includes('arrival')) {
-      return "Your order will be ready in 15 minutes. We're preparing it fresh! ⏱️";
-    }
-    if (lower.includes('confirm') || lower.includes('yes') || lower.includes('ok') || lower.includes('add')) {
-      return "Great! ✅ I've confirmed your order. You'll receive a QR voucher shortly. See you soon!";
-    }
-    if (lower.includes('thank') || lower.includes('thanks')) {
-      return "You're welcome! 😊 It's our pleasure to serve you. Safe travels!";
-    }
-    if (lower.includes('whatsapp') || lower.includes('chat') || lower.includes('message')) {
-      return "You're chatting with us via WhatsApp through our privacy relay. Your phone number is hidden! 🔒";
-    }
-    return "Thanks for your message! I'm here to help with your order. Would you like to know more about our offerings?";
-  }
-};
-
-function WhatsAppChatSimulator({ 
-  vendorName = "Sharma Ji Samosa Hub",
-  vendorIcon = "🛍️",
-  onConfirm,
-  isConfirmed,
-}: { 
-  vendorName?: string;
-  vendorIcon?: string;
-  onConfirm?: () => void;
-  isConfirmed?: boolean;
-}) {
-  const [messages, setMessages] = useState<ChatMessageType[]>([
-    {
-      id: "1",
-      sender: 'vendor',
-      text: `👋 Welcome! This is ${vendorName}. How can I help you today?`,
-      timestamp: format(new Date(Date.now() - 180000), 'hh:mm a'),
-      isDelivered: true,
-      isSeen: true,
-    },
-    {
-      id: "2",
-      sender: 'vendor',
-      text: "We have a special fixed rate for you: ₹120. No hidden charges!",
-      timestamp: format(new Date(Date.now() - 120000), 'hh:mm a'),
-      isDelivered: true,
-      isSeen: true,
-    }
-  ]);
-  const [inputMessage, setInputMessage] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-  const [hasConfirmed, setHasConfirmed] = useState(isConfirmed || false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [showVoucher, setShowVoucher] = useState(false);
-  const [chatActive, setChatActive] = useState(true);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const getVendorResponse = (userMessage: string): string => {
-    const lower = userMessage.toLowerCase();
-    
-    if (lower.includes('hi') || lower.includes('hello') || lower.includes('hey')) {
-      return "Hello there! 👋 How can I assist you with your order today?";
-    }
-    if (lower.includes('price') || lower.includes('cost') || lower.includes('₹') || lower.includes('rate') || lower.includes('how much')) {
-      return "Our fixed price is ₹120 for this item. We maintain transparent rates for all our customers. Would you like to confirm your order? 🏷️";
-    }
-    if (lower.includes('time') || lower.includes('when') || lower.includes('arrival') || lower.includes('ready')) {
-      return "We'll have your order ready in 15 minutes. We're preparing it fresh! ⏱️";
-    }
-    if (lower.includes('confirm') || lower.includes('yes') || lower.includes('ok') || lower.includes('add') || lower.includes('order')) {
-      return "Excellent! ✅ Your order has been confirmed. I'll share a QR voucher with you shortly. We look forward to serving you!";
-    }
-    if (lower.includes('thank') || lower.includes('thanks') || lower.includes('thank you')) {
-      return "You're most welcome! 😊 It's our pleasure. Safe travels and enjoy your journey!";
-    }
-    if (lower.includes('voucher') || lower.includes('qr') || lower.includes('code')) {
-      return "Here's your QR voucher! 📱 Just show this at our shop for quick service. Tap the QR button below to see it.";
-    }
-    if (lower.includes('clean') || lower.includes('hygiene') || lower.includes('safety')) {
-      return "We maintain the highest hygiene standards! ⭐ 4.8★ rating for cleanliness. Our shop is regularly sanitized and all staff wear gloves. 🧤";
-    }
-    if (lower.includes('menu') || lower.includes('food') || lower.includes('eat') || lower.includes('snack')) {
-      return "We have a variety of freshly made snacks! 🌯 Our specialty is samosas, but we also have kachoris, jalebis, and refreshing chai. All at fixed, transparent prices!";
-    }
-    if (lower.includes('privacy') || lower.includes('phone') || lower.includes('number') || lower.includes('hidden')) {
-      return "Your privacy is protected! 🔒 I can see you as Customer #TRV-8029. Your real phone number is completely hidden. We love this system!";
-    }
-    if (lower.includes('bye') || lower.includes('goodbye')) {
-      return "Goodbye! 👋 It was a pleasure chatting with you. Safe travels and we hope to see you soon!";
-    }
-    
-    // Default response
-    return "Thanks for your message! I'm here to help. Would you like to know about our menu, pricing, or confirm an order? Just ask! 😊";
-  };
-
-  const sendMessage = () => {
-    const trimmed = inputMessage.trim();
-    if (!trimmed || !chatActive) return;
-
-    const userMsg: ChatMessageType = {
-      id: Date.now().toString(),
-      sender: 'user',
-      text: trimmed,
-      timestamp: format(new Date(), 'hh:mm a'),
-      isDelivered: true,
-      isSeen: false,
-    };
-
-    setMessages(prev => [...prev, userMsg]);
-    setInputMessage("");
-    setIsTyping(true);
-
-    // Simulate vendor typing and response
-    setTimeout(() => {
-      const responseText = getVendorResponse(trimmed);
-      const vendorMsg: ChatMessageType = {
-        id: (Date.now() + 1).toString(),
-        sender: 'vendor',
-        text: responseText,
-        timestamp: format(new Date(), 'hh:mm a'),
-        isDelivered: true,
-        isSeen: true,
-      };
-      
-      setMessages(prev => [...prev, vendorMsg]);
-      setIsTyping(false);
-
-      // Check if user is confirming
-      if (trimmed.toLowerCase().includes('confirm') || 
-          trimmed.toLowerCase().includes('yes') || 
-          trimmed.toLowerCase().includes('ok')) {
-        setHasConfirmed(true);
-        if (onConfirm) onConfirm();
-        // Show voucher after confirmation
-        setTimeout(() => setShowVoucher(true), 500);
-      }
-    }, 800 + Math.random() * 1000);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
-
-  return (
-    <div className="flex flex-col h-105 bg-[#e9efe9] rounded-2xl overflow-hidden border border-ink/8">
-      {/* Chat Header */}
-      <div className="flex items-center gap-3 border-b border-ink/8 bg-paper px-4 py-3 shrink-0">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-saffron/15 text-2xl">
-          {vendorIcon}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-ink">{vendorName}</p>
-          <div className="flex items-center gap-1.5">
-            <span className={cn(
-              "h-2 w-2 rounded-full",
-              chatActive ? "bg-moss animate-pulse" : "bg-ink-muted"
-            )} />
-            <span className="text-[10px] text-ink-muted">
-              {chatActive ? "Online · Usually replies instantly" : "Offline"}
-            </span>
-          </div>
-        </div>
-        <button type="button" className="icon-button h-8 w-8" aria-label="More options">
-          <MoreVertical size={14} />
-        </button>
-      </div>
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5">
-        {messages.map((msg) => (
-          <div key={msg.id} className={cn(
-            "flex",
-            msg.sender === 'user' ? "justify-end" : "justify-start"
-          )}>
-            <div className={cn(
-              "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-5 shadow-sm",
-              msg.sender === 'user' 
-                ? "bg-teal text-white rounded-br-sm" 
-                : "bg-white text-ink rounded-bl-sm"
-            )}>
-              {msg.text}
+            
+            <div className="mt-5 space-y-2">
+              {vendors.map((vendor) => {
+                const Icon = vendor.icon;
+                const isConfirmed = vendor.status === 'confirmed';
+                const isPending = vendor.status === 'pending';
+                const isConfirming = vendor.status === 'confirming';
+                const isDeclined = vendor.status === 'declined';
+                const showRemove = showRemoveConfirm === vendor.id;
+                
+                return (
+                  <div 
+                    key={vendor.id} 
+                    className={cn(
+                      "flex items-center gap-3 rounded-xl border px-4 py-3 transition-all duration-300",
+                      isConfirmed ? "border-moss/20 bg-moss/5" : "border-ink/8 bg-paper-dark/50",
+                      isConfirming && "border-amber/20 bg-amber/5"
+                    )}
+                  >
+                    <div className={cn(
+                      "flex h-8 w-8 items-center justify-center rounded-lg",
+                      isConfirmed ? "bg-moss/10 text-moss" : "bg-ink/5 text-ink-muted"
+                    )}>
+                      <Icon size={15} />
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-ink">{vendor.name}</p>
+                      <p className="text-[10px] text-ink-muted capitalize">{vendor.type}</p>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                      {vendor.price && (
+                        <span className="text-xs font-semibold text-ink">₹{vendor.price}</span>
+                      )}
+                      
+                      {isConfirmed ? (
+                        <span className="flex items-center gap-1 text-xs font-bold text-moss">
+                          <CheckCircle2 size={14} /> Confirmed
+                        </span>
+                      ) : isConfirming ? (
+                        <span className="flex items-center gap-1 text-xs font-bold text-amber">
+                          <Loader2 size={14} className="animate-spin" /> Confirming...
+                        </span>
+                      ) : isDeclined ? (
+                        <span className="text-xs font-bold text-coral">Declined</span>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            onClick={() => onConfirmVendor(vendor.id)}
+                            size="sm"
+                            variant="outline"
+                            className="h-7 rounded-lg border-teal/30 px-3 text-xs font-bold text-teal hover:bg-teal/5"
+                          >
+                            Confirm
+                          </Button>
+                          {showRemove ? (
+                            <div className="flex items-center gap-1">
+                              <Button
+                                onClick={() => handleRemoveVendor(vendor.id)}
+                                size="sm"
+                                variant="destructive"
+                                className="h-7 rounded-lg px-2 text-xs font-bold"
+                              >
+                                Remove
+                              </Button>
+                              <Button
+                                onClick={() => setShowRemoveConfirm(null)}
+                                size="sm"
+                                variant="outline"
+                                className="h-7 rounded-lg px-2 text-xs"
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setShowRemoveConfirm(vendor.id)}
+                              className="text-ink-muted/40 hover:text-coral transition-colors"
+                              aria-label={`Remove ${vendor.name}`}
+                            >
+                              <X size={14} />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </div>
-        ))}
-        
-        {isTyping && (
-          <div className="flex justify-start">
-            <div className="bg-white rounded-2xl rounded-bl-sm px-4 py-3">
-              <div className="flex items-center gap-1">
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink/40 [animation-delay:-0.2s]" />
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink/40 [animation-delay:-0.1s]" />
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink/40" />
+            
+            {allVendorsConfirmed && (
+              <div className="mt-4 rounded-xl bg-moss/10 p-3 text-center text-xs font-bold text-moss animate-fade-up">
+                <CheckCircle2 size={16} className="inline mr-2" />
+                All vendors confirmed! Your trip is ready for payment.
               </div>
-            </div>
-          </div>
-        )}
-        
-        {/* QR Voucher */}
-        {showVoucher && (
-          <div className="flex justify-start">
-            <div className="bg-white rounded-2xl rounded-bl-sm p-4 max-w-[85%] border border-teal/20 animate-fade-up">
-              <div className="flex items-center gap-3">
-                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-teal/10">
-                  <QrCode size={32} className="text-teal" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-ink">QR Voucher</p>
-                  <p className="text-[10px] text-ink-muted">Fixed rate · ₹120</p>
-                  <p className="text-[9px] text-teal font-semibold">✓ Verified</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Chat Input */}
-      <div className="border-t border-ink/8 bg-paper px-3 py-2.5 shrink-0">
-        <div className="flex items-center gap-2">
-          <button type="button" className="icon-button h-8 w-8 shrink-0" aria-label="Attachment">
-            <Paperclip size={14} />
-          </button>
-          <div className="flex-1 relative">
-            <input
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Message vendor..."
-              className="w-full rounded-xl border border-ink/10 bg-paper-dark px-4 py-2 text-sm text-ink outline-none focus:border-teal/30 focus:ring-2 focus:ring-teal/10"
-              disabled={!chatActive}
-            />
-          </div>
-          <button
-            type="button"
-            onClick={sendMessage}
-            disabled={!inputMessage.trim() || !chatActive}
-            className={cn(
-              "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors",
-              inputMessage.trim() && chatActive
-                ? "bg-teal text-white hover:bg-teal-dark"
-                : "bg-ink/5 text-ink-muted/40 cursor-not-allowed"
             )}
-          >
-            <Send size={15} />
-          </button>
-        </div>
-        {chatActive && (
-          <div className="mt-1 flex items-center gap-3 px-1">
-            <span className="text-[9px] text-ink-muted/60 flex items-center gap-1">
-              <LockKeyhole size={10} className="text-teal" />
-              Privacy relay active
-            </span>
-            <span className="text-[9px] text-ink-muted/60">
-              {messages.filter(m => m.sender === 'vendor').length} vendor messages
-            </span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// =============================================================================
-// RIPPLE ENGINE ENHANCEMENTS - Cascade Animation
-// =============================================================================
-
-type CascadeStep = {
-  id: string;
-  label: string;
-  icon: React.ElementType;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  description: string;
-  delay: number;
-};
-
-function CascadeAnimation({ 
-  isResolving, 
-  resolved,
-  onComplete,
-}: { 
-  isResolving: boolean;
-  resolved: boolean;
-  onComplete?: () => void;
-}) {
-  const [steps, setSteps] = useState<CascadeStep[]>([
-    { 
-      id: 'hotel', 
-      label: 'Hotel: Kesar Bagh Haveli', 
-      icon: Hotel, 
-      status: 'pending',
-      description: 'Updating check-in time',
-      delay: 0
-    },
-    { 
-      id: 'driver', 
-      label: 'Driver: Rajesh K.', 
-      icon: Car, 
-      status: 'pending',
-      description: 'Recalculating route',
-      delay: 800
-    },
-    { 
-      id: 'guide', 
-      label: 'Guide: Amber Fort', 
-      icon: Compass, 
-      status: 'pending',
-      description: 'Notifying schedule change',
-      delay: 1600
-    },
-    { 
-      id: 'vendor', 
-      label: 'Vendor: Sharma Ji', 
-      icon: Store, 
-      status: 'pending',
-      description: 'Updating order time',
-      delay: 2400
-    },
-    { 
-      id: 'traveler', 
-      label: 'Traveler: Aanya S.', 
-      icon: UserRound, 
-      status: 'pending',
-      description: 'Sending updated itinerary',
-      delay: 3200
-    },
-  ]);
-
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [completedCount, setCompletedCount] = useState(0);
-
-  useEffect(() => {
-    if (isResolving && !isProcessing && !resolved) {
-      startCascade();
-    }
-  }, [isResolving, isProcessing, resolved]);
-
-  const startCascade = () => {
-    setIsProcessing(true);
-    setProgress(0);
-    setCompletedCount(0);
-
-    const totalSteps = steps.length;
-    let completed = 0;
-
-    steps.forEach((step, index) => {
-      const delay = step.delay + 600;
-
-      setTimeout(() => {
-        setSteps(prev => prev.map((s, i) => 
-          i === index ? { ...s, status: 'processing' } : s
-        ));
-
-        // Simulate processing
-        setTimeout(() => {
-          const success = Math.random() > 0.1;
-          setSteps(prev => prev.map((s, i) => 
-            i === index ? { ...s, status: success ? 'completed' : 'failed' } : s
-          ));
+          </Card>
           
-          completed++;
-          setCompletedCount(completed);
-          setProgress((completed / totalSteps) * 100);
-
-          if (completed === totalSteps) {
-            setTimeout(() => {
-              setIsProcessing(false);
-              if (onComplete) onComplete();
-            }, 400);
-          }
-        }, 600 + Math.random() * 400);
-      }, delay);
-    });
-  };
-
-  const allCompleted = steps.every(s => s.status === 'completed');
-  const hasFailed = steps.some(s => s.status === 'failed');
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-bold text-ink">Cascade Update</p>
-        <span className="text-[10px] font-bold text-ink-muted">
-          {completedCount}/{steps.length} complete
-        </span>
-      </div>
-
-      <Progress value={progress} className="h-1.5" />
-
-      <div className="space-y-2">
-        {steps.map((step) => {
-          const Icon = step.icon;
-          const isCompleted = step.status === 'completed';
-          const isProcessing = step.status === 'processing';
-          const isFailed = step.status === 'failed';
-          const isPending = step.status === 'pending';
-
-          return (
-            <div 
-              key={step.id}
-              className={cn(
-                "flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-all duration-500",
-                isCompleted ? "border-moss/20 bg-moss/5" : "border-ink/8 bg-paper-dark/30",
-                isProcessing && "border-amber/20 bg-amber/5"
-              )}
-            >
-              <div className={cn(
-                "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-all duration-500",
-                isCompleted ? "bg-moss/10 text-moss" : "bg-ink/5 text-ink-muted",
-                isProcessing && "bg-amber/10 text-amber"
+          <Card className="p-6">
+            <div className="flex items-center justify-between border-b border-ink/8 pb-5">
+              <div>
+                <p className="eyebrow text-ink-muted">Timing Compatibility</p>
+              </div>
+              <Badge className={cn(
+                allVendorsConfirmed ? "bg-moss/10 text-moss" : "bg-amber/10 text-amber"
               )}>
-                <Icon size={14} />
+                {allVendorsConfirmed ? "✓ All Checks Passed" : "⏳ Pending"}
+              </Badge>
+            </div>
+            
+            <div className="mt-5 space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-ink-muted">Hotel Check-in</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">{arrivalTime || "17:30"}</span>
+                  <span className={cn(
+                    "text-xs font-bold",
+                    allVendorsConfirmed ? "text-moss" : "text-amber"
+                  )}>
+                    {allVendorsConfirmed ? "✓ Achievable" : "⏳ Pending"}
+                  </span>
+                </div>
               </div>
               
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-ink">{step.label}</p>
-                <p className="text-[10px] text-ink-muted">{step.description}</p>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-ink-muted">Arrival Buffer</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">45 min</span>
+                  <span className="text-xs font-bold text-moss">✓ Preserved</span>
+                </div>
               </div>
-
-              <div className="flex items-center gap-1.5">
-                {isCompleted && (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-moss animate-fade-up">
-                    <CheckCircle2 size={13} /> Done
-                  </span>
-                )}
-                {isProcessing && (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-amber">
-                    <Loader2 size={13} className="animate-spin" /> Processing
-                  </span>
-                )}
-                {isFailed && (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-coral">
-                    <AlertTriangle size={13} /> Failed
-                  </span>
-                )}
-                {isPending && (
-                  <span className="text-[10px] text-ink-muted/50">Waiting</span>
-                )}
+              
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-ink-muted">Driver Rest</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">2.5 hours</span>
+                  <span className="text-xs font-bold text-moss">✓ Protected</span>
+                </div>
               </div>
             </div>
-          );
-        })}
+            
+            {allVendorsConfirmed && (
+              <div className="mt-4 flex items-center gap-2 rounded-lg bg-teal/10 px-3 py-2 text-xs text-teal animate-fade-up">
+                <Clock size={14} />
+                All timing checks passed. Route is feasible.
+              </div>
+            )}
+          </Card>
+        </div>
+        
+        <div className="space-y-6">
+          <Card className="h-fit p-6">
+            <div className="flex items-center justify-between">
+              <p className="eyebrow text-ink-muted">Trip ledger</p>
+              <span className="flex items-center gap-1.5 text-[11px] font-bold text-moss">
+                <LockKeyhole size={13} /> Secure demo
+              </span>
+            </div>
+            
+            <div className="mt-5 space-y-4 text-sm">
+              <div className="flex justify-between">
+                <span className="text-ink-muted">Hotels · 2 nights</span>
+                <strong>₹{hotelsPrice.toLocaleString("en-IN")}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-ink-muted">Transport · 3 days</span>
+                <strong>₹{transportPrice.toLocaleString("en-IN")}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-ink-muted">Activities & guide</span>
+                <strong>₹{activitiesPrice.toLocaleString("en-IN")}</strong>
+              </div>
+              {addedStop && (
+                <div className="flex justify-between">
+                  <span className="text-ink-muted">Local stop voucher</span>
+                  <strong>₹{localStopPrice.toLocaleString("en-IN")}</strong>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-ink-muted">Orbit service</span>
+                <strong>₹{servicePrice.toLocaleString("en-IN")}</strong>
+              </div>
+            </div>
+            
+            <div className="my-5 border-t border-ink/8" />
+            
+            <div className="flex items-end justify-between">
+              <span className="text-sm font-bold text-ink">Trip total</span>
+              <span className="font-display text-3xl font-semibold tracking-tighter text-ink">
+                ₹{grandTotal.toLocaleString("en-IN")}
+              </span>
+            </div>
+            
+            {allVendorsConfirmed ? (
+              <div className="mt-4">
+                <PaymentMethodSelection
+                  selectedMethod={selectedPaymentMethod}
+                  onSelect={onSelectPaymentMethod}
+                  onPay={onPay}
+                  isProcessing={isProcessingPayment}
+                  grandTotal={grandTotal}
+                />
+              </div>
+            ) : (
+              <div className="mt-4 rounded-xl bg-amber/10 p-4 text-center">
+                <p className="text-xs font-bold text-amber">⚠️ Please confirm all vendors before proceeding to payment.</p>
+                <p className="mt-1 text-[10px] text-ink-muted">{pendingVendors.length} vendor{pendingVendors.length > 1 ? 's' : ''} pending confirmation</p>
+              </div>
+            )}
+            
+            <p className="mt-3 text-center text-[11px] leading-5 text-ink-muted">
+              Demo interaction only · no payment is processed
+            </p>
+          </Card>
+        </div>
       </div>
-
-      {allCompleted && !isProcessing && (
-        <div className="rounded-xl bg-moss/10 p-3 text-center text-xs font-bold text-moss animate-fade-up">
-          <CheckCircle2 size={16} className="inline mr-2" />
-          All systems updated! Trip successfully adapted.
-        </div>
-      )}
-
-      {hasFailed && !isProcessing && (
-        <div className="rounded-xl bg-coral/10 p-3 text-center text-xs font-bold text-coral animate-fade-up">
-          <AlertTriangle size={16} className="inline mr-2" />
-          Some updates failed. Manual intervention may be needed.
-        </div>
-      )}
     </div>
   );
 }
@@ -1397,17 +1138,176 @@ function IntakeCanvas({
   };
 
   const totalTravelers = adults + childrenCount + infants;
-  const basePricePerAdult = 47800;
-  const pricePerChild = 25000;
-  const pricePerInfant = 10000;
-
-  // Get destination image dynamically
   const destinationImage = getDestinationImage(destination);
+
+  const styleCards = [
+    { label: "Local Street Food", icon: Store, color: "bg-saffron/12 text-saffron" },
+    { label: "Scenic Drives", icon: Route, color: "bg-teal/12 text-teal" },
+    { label: "Culture & History", icon: MapPin, color: "bg-ink/8 text-ink" },
+    { label: "Thrill", icon: Bike, color: "bg-coral/12 text-coral" },
+    { label: "Relaxed", icon: Coffee, color: "bg-moss/12 text-moss" },
+    { label: "Adventure", icon: Mountain, color: "bg-amber/20 text-amber-dark" },
+    { label: "Family Friendly", icon: UsersRound, color: "bg-teal/8 text-teal" },
+    { label: "Romantic Getaway", icon: Heart, color: "bg-coral/8 text-coral" },
+    { label: "Budget Travel", icon: WalletCards, color: "bg-moss/8 text-moss" },
+    { label: "Luxury", icon: Sparkles, color: "bg-saffron/8 text-saffron" },
+    { label: "Spiritual", icon: Compass, color: "bg-ink/6 text-ink" },
+  ];
+
+  const travelServices = [
+    { id: "flights", label: "Flights", icon: Plane, color: "text-teal" },
+    { id: "hotels", label: "Hotels", icon: Hotel, color: "text-saffron" },
+    { id: "homestays", label: "Homestays & Villas", icon: HomeIcon, color: "text-moss" },
+    { id: "packages", label: "Holiday Packages", icon: Package, color: "text-coral" },
+    { id: "trains", label: "Trains", icon: Train, color: "text-amber" },
+    { id: "buses", label: "Buses", icon: Bus, color: "text-teal" },
+    { id: "cabs", label: "Cabs", icon: Car, color: "text-saffron" },
+    { id: "tours", label: "Tours & Attractions", icon: Ticket, color: "text-moss" },
+  ];
+
+  const suggestedDestinations = [
+    {
+      id: "goa",
+      name: "Goa",
+      location: "India",
+      image: "https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=800&q=80",
+      description: "Beaches, nightlife & Portuguese heritage",
+      rating: "4.8",
+      price: "From ₹8,999",
+    },
+    {
+      id: "jaipur",
+      name: "Jaipur",
+      location: "Rajasthan, India",
+      image: "https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&w=800&q=80",
+      description: "The Pink City · Palaces & Forts",
+      rating: "4.7",
+      price: "From ₹6,499",
+    },
+    {
+      id: "kerala",
+      name: "Kerala",
+      location: "India",
+      image: "https://images.unsplash.com/photo-1593693411515-c20261bcad6e?auto=format&fit=crop&w=800&q=80",
+      description: "Backwaters, houseboats & tropical greenery",
+      rating: "4.9",
+      price: "From ₹12,999",
+    },
+    {
+      id: "manali",
+      name: "Manali",
+      location: "Himachal Pradesh, India",
+      image: "https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?auto=format&fit=crop&w=800&q=80",
+      description: "Himalayan mountains & adventure sports",
+      rating: "4.6",
+      price: "From ₹7,499",
+    },
+    {
+      id: "udaipur",
+      name: "Udaipur",
+      location: "Rajasthan, India",
+      image: "https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=800&q=80",
+      description: "Lakes, palaces & romantic ambiance",
+      rating: "4.8",
+      price: "From ₹8,999",
+    },
+    {
+      id: "varanasi",
+      name: "Varanasi",
+      location: "Uttar Pradesh, India",
+      image: "https://images.unsplash.com/photo-1561361058-c24cecae35ca?auto=format&fit=crop&w=800&q=80",
+      description: "Spiritual ghats & ancient culture",
+      rating: "4.5",
+      price: "From ₹5,499",
+    },
+  ];
 
   return (
     <div className="space-y-8 animate-fade-up">
-      <TravelServicesSection onServiceClick={(id) => toast.info(`${id} service opened`)} />
-      <SuggestedDestinationsSection onDestinationClick={onDestinationClick} />
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <MiniLabel tone="teal">Explore</MiniLabel>
+          <h3 className="mt-1 font-display text-xl font-semibold tracking-tighter text-ink">Plan your journey</h3>
+        </div>
+        <span className="text-xs text-ink-muted">8 services</span>
+      </div>
+      
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3">
+        {travelServices.map((service) => {
+          const Icon = service.icon;
+          return (
+            <button
+              key={service.id}
+              type="button"
+              onClick={() => {
+                toast.info(`${service.label} service opened`);
+              }}
+              className="group flex flex-col items-center gap-2 rounded-2xl border border-ink/8 bg-paper/60 p-4 transition-all duration-200 hover:border-teal/30 hover:bg-paper hover:shadow-[0_8px_24px_rgba(13,148,136,0.08)] hover:-translate-y-0.5"
+            >
+              <div className={cn(
+                "flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-200",
+                "bg-ink/5 group-hover:bg-teal/10 group-hover:scale-105",
+                service.color
+              )}>
+                <Icon size={20} strokeWidth={1.8} />
+              </div>
+              <span className="text-[11px] font-semibold text-ink/80 text-center leading-tight group-hover:text-ink">
+                {service.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <MiniLabel tone="saffron">Trending Destinations</MiniLabel>
+          <h3 className="mt-1 font-display text-xl font-semibold tracking-tighter text-ink">Popular places to visit</h3>
+        </div>
+        <button 
+          type="button" 
+          onClick={() => toast.info("View all destinations")}
+          className="text-xs font-bold text-teal hover:underline flex items-center gap-1"
+        >
+          See all <ArrowRight size={13} />
+        </button>
+      </div>
+      
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        {suggestedDestinations.map((destination) => (
+          <button
+            key={destination.id}
+            type="button"
+            onClick={() => {
+              onDestinationClick?.(destination.name);
+              toast.info(`Exploring ${destination.name}`);
+            }}
+            className="group relative overflow-hidden rounded-2xl aspect-4/3 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_12px_32px_rgba(0,0,0,0.15)] focus-visible:ring-2 focus-visible:ring-teal"
+          >
+            <img 
+              src={destination.image} 
+              alt={destination.name}
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+            />
+            <div className="absolute inset-0 bg-linear-to-t from-ink/85 via-ink/30 to-transparent" />
+            
+            <div className="absolute top-3 right-3 flex items-center gap-1.5 rounded-full bg-ink/70 backdrop-blur-sm px-2.5 py-1">
+              <Star size={10} className="fill-saffron text-saffron" />
+              <span className="text-[10px] font-bold text-white">{destination.rating}</span>
+            </div>
+            
+            <div className="absolute bottom-0 left-0 right-0 p-3 text-left">
+              <h4 className="text-sm font-bold text-white leading-tight">{destination.name}</h4>
+              <p className="mt-0.5 text-[10px] text-white/75 leading-tight">{destination.location}</p>
+              <p className="mt-0.5 text-[9px] text-white/60 leading-tight line-clamp-1">{destination.description}</p>
+              <div className="mt-1.5 flex items-center justify-between">
+                <span className="text-[10px] font-semibold text-teal-light">{destination.price}</span>
+                <span className="text-[9px] text-white/40">→</span>
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
       
       <div className="section-heading max-w-3xl"><MiniLabel tone="teal">01 / Intake Canvas</MiniLabel><h1>Build a trip that can <em>bend</em> without breaking.</h1><p>Tell Orbit how you want to move. The route, stays, local stops, and live operations will shape around you.</p></div>
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
@@ -1550,491 +1450,8 @@ function IntakeCanvas({
   );
 }
 
-type ChatMessage = { id: string; role: "user" | "assistant"; text: string };
-
 // =============================================================================
-// POI AI Chat Functions
-// =============================================================================
-
-function getPOIAIResponse(poi: POI, userMessage: string): string {
-  const lowerMsg = userMessage.toLowerCase();
-  
-  if (poi.type === 'temple') {
-    if (lowerMsg.includes('time') || lowerMsg.includes('hour') || lowerMsg.includes('open')) {
-      return `${poi.name} is open ${poi.hours || 'from early morning to evening'}. The detour takes about ${poi.detourTime}. Would you like to include this peaceful stop in your journey?`;
-    }
-    if (lowerMsg.includes('cost') || lowerMsg.includes('price') || lowerMsg.includes('fee') || lowerMsg.includes('₹')) {
-      return `Entry to ${poi.name} is free (donations welcome). The spiritual experience is priceless! The detour adds ${poi.detourTime} to your route.`;
-    }
-    if (lowerMsg.includes('worth') || lowerMsg.includes('recommend') || lowerMsg.includes('should') || lowerMsg.includes('good')) {
-      return `Absolutely! ${poi.name} has a ${poi.rating}★ rating from travelers. It's a beautiful, peaceful place that many find refreshing during a long journey. The detour is only ${poi.detourTime}.`;
-    }
-    if (lowerMsg.includes('thank')) {
-      return `You're welcome! ${poi.name} would be a beautiful addition to your journey. Let me know if you'd like to add it!`;
-    }
-    return `🛕 ${poi.name} is a serene spiritual destination with a ${poi.rating}★ rating. The detour takes ${poi.detourTime} and entry is free. Many travelers find it a meaningful pause during their journey. Would you like to add it to your route?`;
-  }
-  
-  if (poi.type === 'food') {
-    if (lowerMsg.includes('time') || lowerMsg.includes('hour') || lowerMsg.includes('open')) {
-      return `${poi.name} is open ${poi.hours || 'throughout the day'}. The detour takes about ${poi.detourTime}. Perfect timing for a meal break!`;
-    }
-    if (lowerMsg.includes('cost') || lowerMsg.includes('price') || lowerMsg.includes('budget') || lowerMsg.includes('₹')) {
-      return `A meal at ${poi.name} typically costs around ₹${poi.detourCost} per person. They have a ${poi.rating}★ rating and are known for quality food!`;
-    }
-    if (lowerMsg.includes('worth') || lowerMsg.includes('recommend') || lowerMsg.includes('should') || lowerMsg.includes('good')) {
-      return `Highly recommended! ${poi.name} has a ${poi.rating}★ rating and is a traveler favorite. The ${poi.detourTime} detour is well worth it for the experience!`;
-    }
-    if (lowerMsg.includes('thank')) {
-      return `You're welcome! ${poi.name} would be a great food stop. Let me know if you'd like to add it!`;
-    }
-    return `🍽️ ${poi.name} is a popular food destination with a ${poi.rating}★ rating. Meals cost around ₹${poi.detourCost} per person. The detour takes ${poi.detourTime}. Would you like to add this stop?`;
-  }
-  
-  if (poi.type === 'entertainment') {
-    if (lowerMsg.includes('time') || lowerMsg.includes('hour') || lowerMsg.includes('open')) {
-      return `${poi.name} is open ${poi.hours || 'until late'}. The detour takes about ${poi.detourTime}. A fun break for the whole family!`;
-    }
-    if (lowerMsg.includes('cost') || lowerMsg.includes('price') || lowerMsg.includes('ticket') || lowerMsg.includes('₹')) {
-      return `Entry to ${poi.name} starts at ₹${poi.detourCost} per person. They have a ${poi.rating}★ rating and offer great entertainment!`;
-    }
-    if (lowerMsg.includes('worth') || lowerMsg.includes('recommend') || lowerMsg.includes('should') || lowerMsg.includes('good')) {
-      return `Definitely! ${poi.name} has a ${poi.rating}★ rating and offers great entertainment. The ${poi.detourTime} detour is a fun way to break up the journey!`;
-    }
-    if (lowerMsg.includes('thank')) {
-      return `You're welcome! ${poi.name} would be a fun addition. Let me know if you'd like to add it!`;
-    }
-    return `🎮 ${poi.name} offers great entertainment with a ${poi.rating}★ rating. Tickets start at ₹${poi.detourCost} per person. The detour takes ${poi.detourTime}. Would you like to include it?`;
-  }
-  
-  if (poi.type === 'shopping') {
-    if (lowerMsg.includes('time') || lowerMsg.includes('hour') || lowerMsg.includes('open')) {
-      return `${poi.name} is open ${poi.hours || 'throughout the day'}. The detour takes about ${poi.detourTime} - perfect for some shopping!`;
-    }
-    if (lowerMsg.includes('cost') || lowerMsg.includes('price') || lowerMsg.includes('budget') || lowerMsg.includes('₹')) {
-      return `${poi.name} has products for all budgets. Entry is free, and you can spend anywhere from ₹200 upwards! They have a ${poi.rating}★ rating.`;
-    }
-    if (lowerMsg.includes('worth') || lowerMsg.includes('recommend') || lowerMsg.includes('should') || lowerMsg.includes('good')) {
-      return `Absolutely worth it! ${poi.name} has a ${poi.rating}★ rating and offers quality products. The ${poi.detourTime} detour is great for picking up local items!`;
-    }
-    if (lowerMsg.includes('thank')) {
-      return `You're welcome! ${poi.name} would be a great shopping stop. Let me know if you'd like to add it!`;
-    }
-    return `🛍️ ${poi.name} is a popular shopping destination with a ${poi.rating}★ rating. The detour takes ${poi.detourTime}. Would you like to add this shopping stop?`;
-  }
-  
-  return `I'd be happy to help with ${poi.name}! ${poi.description} The detour takes ${poi.detourTime} and costs ₹${poi.detourCost}. Would you like to add it to your route?`;
-}
-
-// =============================================================================
-// POI Chat Panel Component
-// =============================================================================
-
-function POIChatPanel({ 
-  poi, 
-  onClose, 
-  onAdd, 
-  added,
-  messages,
-  onSendMessage,
-  typing
-}: { 
-  poi: POI;
-  onClose: () => void;
-  onAdd: () => void;
-  added: boolean;
-  messages: ChatMessage[];
-  onSendMessage: (msg: string) => void;
-  typing: boolean;
-}) {
-  const [input, setInput] = useState("");
-  
-  const handleSend = () => {
-    const trimmed = input.trim();
-    if (!trimmed || typing) return;
-    onSendMessage(trimmed);
-    setInput("");
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between border-b border-ink/10 pb-3">
-        <div>
-          <MiniLabel tone="teal">Route waypoint · AI Assistant</MiniLabel>
-          <h3 className="mt-1 flex items-center gap-2 font-display text-xl font-semibold tracking-tighter">
-            <span>{poi.icon}</span>
-            {poi.name}
-          </h3>
-        </div>
-        <button type="button" className="icon-button" onClick={onClose}>
-          <X size={16} />
-        </button>
-      </div>
-      
-      <div className="flex items-center justify-between border-b border-ink/8 pb-3">
-        <span className="flex items-center gap-1.5 text-xs font-bold text-ink">
-          <Star size={14} fill="currentColor" className="text-saffron" /> 
-          {poi.rating} · {poi.detourTime} detour
-        </span>
-        <span className="text-xs font-semibold text-moss">
-          {poi.hours || 'Open today'}
-        </span>
-      </div>
-      
-      <div className="max-h-56 overflow-y-auto space-y-3 pr-1">
-        {messages.map((message) => (
-          <div key={message.id} className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}>
-            {message.role === "assistant" && (
-              <div className="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal text-white">
-                <Bot size={15} />
-              </div>
-            )}
-            <div className={cn(
-              "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-5",
-              message.role === "user" 
-                ? "bg-teal text-white" 
-                : "bg-teal/8 text-ink"
-            )}>
-              {message.text}
-            </div>
-          </div>
-        ))}
-        {typing && (
-          <div className="flex justify-start">
-            <div className="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal text-white">
-              <Bot size={15} />
-            </div>
-            <div className="flex items-center gap-1 rounded-2xl bg-teal/8 px-4 py-3">
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal [animation-delay:-0.2s]" />
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal [animation-delay:-0.1s]" />
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal" />
-            </div>
-          </div>
-        )}
-      </div>
-      
-      <div className="border-t border-ink/10 pt-4">
-        <div className="field-shell mb-3">
-          <input 
-            value={input} 
-            onChange={(e) => setInput(e.target.value)} 
-            onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder={`Ask about ${poi.name}...`}
-            aria-label="Chat message"
-            disabled={typing}
-          />
-          <button 
-            type="button" 
-            onClick={handleSend} 
-            className="icon-button h-8 w-8 shrink-0"
-            disabled={typing}
-            aria-label="Send message"
-          >
-            <Send size={14} className="text-teal" />
-          </button>
-        </div>
-        <Button 
-          onClick={onAdd} 
-          className={cn(
-            "h-11 w-full rounded-xl font-bold",
-            added 
-              ? "bg-moss text-white hover:bg-moss" 
-              : "bg-teal text-white hover:bg-teal-dark"
-          )}
-          disabled={added}
-        >
-          {added ? (
-            <><Check size={16} className="mr-2" /> Added to route</>
-          ) : (
-            <><Plus size={16} className="mr-2" /> Add to route · ₹{poi.detourCost}</>
-          )}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// =============================================================================
-// ROUTE RADAR COMPONENT
-// =============================================================================
-
-function RouteRadar({ 
-  destination, 
-  routePlan, 
-  addedStop, 
-  onAddStop, 
-  tripTotal, 
-  onNext,
-  selectedPOI,
-  setSelectedPOI,
-  poiChatOpen,
-  setPoiChatOpen,
-  addedPOIs,
-  setAddedPOIs,
-  chatMessages,
-  setChatMessages,
-  chatTyping,
-  setChatTyping,
-}: { 
-  destination: string;
-  routePlan: RoutePlan;
-  addedStop: boolean;
-  onAddStop: () => void;
-  tripTotal: number;
-  onNext: () => void;
-  selectedPOI: POI | null;
-  setSelectedPOI: (poi: POI | null) => void;
-  poiChatOpen: boolean;
-  setPoiChatOpen: (open: boolean) => void;
-  addedPOIs: POI[];
-  setAddedPOIs: (pois: POI[]) => void;
-  chatMessages: ChatMessage[];
-  setChatMessages: (messages: ChatMessage[]) => void;
-  chatTyping: boolean;
-  setChatTyping: (typing: boolean) => void;
-}) {
-  const [activeDay, setActiveDay] = useState(1);
-  
-  const handlePOIClick = (poi: POI) => {
-    console.log("POI clicked in RouteRadar:", poi.name);
-    setSelectedPOI(poi);
-    setPoiChatOpen(true);
-    
-    const welcomeMessage: ChatMessage = {
-      id: `assistant-${Date.now()}`,
-      role: "assistant",
-      text: `👋 Hi! I'm your AI assistant for ${poi.name}. ${poi.description} The detour takes ${poi.detourTime} and costs ₹${poi.detourCost}. Would you like to add it to your route?`
-    };
-    setChatMessages([welcomeMessage]);
-  };
-  
-  const handleSendPOIMessage = (msg: string) => {
-    if (!selectedPOI) return;
-    
-    const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      text: msg
-    };
-    
-    const updatedMessages = [...chatMessages, userMessage];
-    setChatMessages(updatedMessages);
-    
-    setChatTyping(true);
-    setTimeout(() => {
-      const response = getPOIAIResponse(selectedPOI, msg);
-      const assistantMessage: ChatMessage = {
-        id: `assistant-${Date.now()}`,
-        role: "assistant",
-        text: response
-      };
-      setChatMessages([...updatedMessages, assistantMessage]);
-      setChatTyping(false);
-    }, 800 + Math.random() * 600);
-  };
-  
-  const handleAddPOI = (poi: POI) => {
-    if (addedPOIs.some(p => p.id === poi.id)) return;
-    
-    setAddedPOIs([...addedPOIs, poi]);
-    setPoiChatOpen(false);
-    setSelectedPOI(null);
-    
-    toast.success(`${poi.name} added to route! +₹${poi.detourCost}`);
-  };
-
-  const allAddedCost = addedPOIs.reduce((sum, p) => sum + p.detourCost, 0);
-
-  return (
-    <div className="space-y-8 animate-fade-up">
-      <div className="section-heading flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
-        <div>
-          <MiniLabel tone="teal">02 / Route Radar</MiniLabel>
-          <h1>Your route with <em>optional discoveries.</em></h1>
-          <p>The main route stays clear. Click any POI to explore if it's worth the detour.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <StatusChip tone="green">Route ready</StatusChip>
-          <StatusChip tone="teal">{addedPOIs.length > 0 ? `${addedPOIs.length} stop${addedPOIs.length > 1 ? 's' : ''} added` : 'Tap POIs to explore'}</StatusChip>
-        </div>
-      </div>
-      
-      <div className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
-        <Card className="overflow-hidden p-0">
-          <div className="flex items-center justify-between border-b border-ink/8 px-5 py-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal/10 text-teal">
-                <Route size={17} />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-ink">
-                  {routePlan.origin} → {routePlan.destination}
-                </p>
-                <p className="text-xs text-ink-muted">
-                  {routePlan.distance} · {routePlan.driveTime} · {addedPOIs.length > 0 ? `${addedPOIs.length} detour${addedPOIs.length > 1 ? 's' : ''}` : 'Direct route'}
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-1.5">
-              {[1, 2, 3].map((day) => (
-                <button 
-                  key={day} 
-                  type="button" 
-                  onClick={() => { 
-                    setActiveDay(day); 
-                    toast.success(`Day ${day} route loaded`); 
-                  }} 
-                  className={cn("day-tab", activeDay === day && "day-tab-active")}
-                >
-                  Day {day}
-                </button>
-              ))}
-            </div>
-          </div>
-          
-          <div className="relative h-112.5 overflow-hidden bg-[#cbd9d3]">
-            <RouteRadarMap 
-              destination={destination}
-              originLabel={routePlan.origin}
-              onPOIClick={handlePOIClick}
-              selectedPOI={selectedPOI}
-              addedPOIs={addedPOIs}
-            />
-            
-            <div className="pointer-events-none absolute bottom-4 left-4 rounded-xl border border-paper/50 bg-paper/88 px-3 py-2 shadow-sm backdrop-blur-md">
-              <p className="eyebrow text-teal">Route • Google Maps style</p>
-              <p className="mt-1 text-xs font-semibold text-ink">
-                {addedPOIs.length > 0 ? `${addedPOIs.length} stop${addedPOIs.length > 1 ? 's' : ''} added` : 'Tap any POI to explore'}
-              </p>
-            </div>
-          </div>
-        </Card>
-        
-        <div className="space-y-5">
-          {poiChatOpen && selectedPOI ? (
-            <Card className="border-teal/12 bg-teal/5 p-5">
-              <POIChatPanel
-                poi={selectedPOI}
-                onClose={() => {
-                  setPoiChatOpen(false);
-                  setSelectedPOI(null);
-                }}
-                onAdd={() => handleAddPOI(selectedPOI)}
-                added={addedPOIs.some(p => p.id === selectedPOI.id)}
-                messages={chatMessages}
-                onSendMessage={handleSendPOIMessage}
-                typing={chatTyping}
-              />
-            </Card>
-          ) : (
-            <Card className="border-teal/12 bg-teal/5 p-5">
-              <div className="flex items-start gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal text-white">
-                  <Bot size={17} />
-                </div>
-                <div>
-                  <MiniLabel tone="teal">Contextual assistant</MiniLabel>
-                  <p className="mt-2 text-sm font-semibold leading-5 text-ink">
-                    {addedPOIs.length > 0 
-                      ? `You've added ${addedPOIs.length} stop${addedPOIs.length > 1 ? 's' : ''}. Want to explore more along the way?` 
-                      : "Click any POI on the map to learn more about it. I'll help you decide!"}
-                  </p>
-                  {addedPOIs.length === 0 && (
-                    <button 
-                      type="button" 
-                      onClick={() => toast.info("Tap a POI marker on the map to start exploring!")} 
-                      className="mt-4 flex items-center gap-1.5 text-xs font-bold text-teal"
-                    >
-                      Explore nearby stops <ArrowRight size={13} />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </Card>
-          )}
-          
-          <Card className="p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <MiniLabel>Daily timeline</MiniLabel>
-                <p className="mt-2 text-sm font-bold text-ink">Friday · 12 February</p>
-              </div>
-              <button type="button" onClick={() => toast.info("Timeline options")} className="icon-button">
-                <MoreHorizontal size={17} />
-              </button>
-            </div>
-            
-            <div className="mt-6 space-y-0">
-              <div className="timeline-row">
-                <div className="timeline-icon bg-teal/10 text-teal">
-                  <HomeIcon size={15} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-xs font-bold text-ink">Home pickup</p>
-                    <span className="text-[10px] font-bold text-ink-muted">07:30</span>
-                  </div>
-                  <p className="mt-1 truncate text-[11px] text-ink-muted">Driver · Rajesh K.</p>
-                </div>
-                <div className="timeline-connector" />
-              </div>
-              
-              {addedPOIs.map((poi, index) => (
-                <div key={poi.id} className="timeline-row">
-                  <div className="timeline-icon bg-saffron/12 text-saffron">
-                    <span className="text-sm">{poi.icon}</span>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="truncate text-xs font-bold text-ink">{poi.name}</p>
-                      <span className="text-[10px] font-bold text-ink-muted">
-                        {`${9 + index * 2}:${index === 0 ? '40' : '20'}`}
-                      </span>
-                    </div>
-                    <p className="mt-1 truncate text-[11px] text-ink-muted">
-                      {poi.detourTime} · ₹{poi.detourCost}
-                    </p>
-                  </div>
-                  {index < addedPOIs.length - 1 && <div className="timeline-connector" />}
-                </div>
-              ))}
-              
-              <div className="timeline-row">
-                <div className="timeline-icon bg-saffron/12 text-saffron">
-                  <Flag size={15} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-xs font-bold text-ink">{routePlan.destination}</p>
-                    <span className="text-[10px] font-bold text-ink-muted">17:30</span>
-                  </div>
-                  <p className="mt-1 truncate text-[11px] text-ink-muted">Arrival at destination</p>
-                </div>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </div>
-      
-      <PriceBar 
-        total={`₹${tripTotal.toLocaleString("en-IN")}`} 
-        delta={addedPOIs.length > 0 ? `+₹${allAddedCost} · ${addedPOIs.length} stop${addedPOIs.length > 1 ? 's' : ''} added` : "Route base price"} 
-      />
-      
-      <div className="flex justify-end">
-        <Button 
-          onClick={onNext} 
-          className="group h-11 rounded-xl bg-ink px-5 font-bold text-paper hover:bg-ink/90"
-        >
-          Keep shaping the trip <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// =============================================================================
-// ENHANCED CUSTOMIZE COMPONENT - WITH REAL IMAGES
+// ENHANCED CUSTOMIZE COMPONENT
 // =============================================================================
 
 type PackageTier = 'essential' | 'standard' | 'premium' | 'luxury';
@@ -2043,9 +1460,7 @@ type MealPlan = 'breakfast' | 'half_board' | 'full_board' | 'all_inclusive';
 type TransportType = 'sedan' | 'suv' | 'luxury' | 'minivan';
 type ActivityLevel = 'relaxed' | 'moderate' | 'active' | 'extreme';
 
-// Category Images - Real Unsplash Photos
 const categoryImages = {
-  // Accommodation
   standardRoom: "https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=800&q=80",
   deluxeRoom: "https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=800&q=80",
   suiteRoom: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80",
@@ -2054,20 +1469,14 @@ const categoryImages = {
   poolView: "https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=800&q=80",
   cityView: "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=800&q=80",
   mountainView: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=800&q=80",
-  
-  // Meal Plans
   breakfast: "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?auto=format&fit=crop&w=800&q=80",
   halfBoard: "https://images.unsplash.com/photo-1551218808-94e220e084d2?auto=format&fit=crop&w=800&q=80",
   fullBoard: "https://images.unsplash.com/photo-1559314809-0d155014e29e?auto=format&fit=crop&w=800&q=80",
   allInclusive: "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=800&q=80",
-  
-  // Transport
   sedan: "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=800&q=80",
   suv: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80",
   luxuryCar: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80",
   minivan: "https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=800&q=80",
-  
-  // Activities
   fortVisit: "https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&w=800&q=80",
   cityTour: "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=800&q=80",
   cookingClass: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80",
@@ -2093,41 +1502,27 @@ function EnhancedCustomization({
   tripTotal: number; 
   onNext: () => void;
 }) {
-  // Package Tier
   const [packageTier, setPackageTier] = useState<PackageTier>('standard');
-  
-  // Accommodation
   const [roomType, setRoomType] = useState<RoomType>('standard');
   const [roomView, setRoomView] = useState<'garden' | 'pool' | 'city' | 'mountain'>('garden');
   const [extraBed, setExtraBed] = useState(false);
-  
-  // Meals
   const [mealPlan, setMealPlan] = useState<MealPlan>('breakfast');
   const [dietaryPreference, setDietaryPreference] = useState<'none' | 'vegetarian' | 'vegan' | 'gluten_free' | 'halal'>('none');
   const [specialOccasion, setSpecialOccasion] = useState<'none' | 'anniversary' | 'birthday' | 'honeymoon'>('none');
-  
-  // Transport
   const [transportType, setTransportType] = useState<TransportType>('sedan');
   const [driverService, setDriverService] = useState<'self' | 'driver' | 'chauffeur'>('driver');
-  
-  // Activities
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>('moderate');
   const [selectedActivities, setSelectedActivities] = useState<string[]>(['fort_visit']);
   const [groupTour, setGroupTour] = useState<boolean>(true);
   const [privateGuide, setPrivateGuide] = useState<boolean>(false);
-  
-  // Add-ons
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
   const [travelInsurance, setTravelInsurance] = useState<boolean>(false);
   const [priorityCheckin, setPriorityCheckin] = useState<boolean>(false);
-  
-  // Extras
   const [earlyCheckin, setEarlyCheckin] = useState<boolean>(false);
   const [lateCheckout, setLateCheckout] = useState<boolean>(false);
   const [airportTransfer, setAirportTransfer] = useState<boolean>(false);
   const [welcomeDrink, setWelcomeDrink] = useState<boolean>(true);
 
-  // Pricing calculations
   const tierPrices = {
     essential: { base: 0, label: 'Essential', color: 'bg-moss/10 text-moss' },
     standard: { base: 1200, label: 'Standard', color: 'bg-teal/10 text-teal' },
@@ -2208,7 +1603,6 @@ function EnhancedCustomization({
     );
   };
 
-  // Feasibility checks
   const feasibilityChecks = [
     { label: "Room availability", status: roomType === 'presidential' ? "limited" : "available", detail: roomType === 'presidential' ? "1 suite left" : "Available" },
     { label: "Driver schedule", status: "available", detail: "Confirmed" },
@@ -2227,7 +1621,6 @@ function EnhancedCustomization({
         <p>Swap the parts that matter. Orbit keeps the route, margin, and driver rest buffer in view.</p>
       </div>
 
-      {/* Package Tier Selector - 4 tiers */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {(Object.keys(tierPrices) as PackageTier[]).map((tier) => {
           const info = tierPrices[tier];
@@ -2274,10 +1667,8 @@ function EnhancedCustomization({
         })}
       </div>
 
-      {/* Main customization grid */}
       <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
         <div className="space-y-4">
-          {/* Accommodation Section */}
           <Card className="p-5 overflow-hidden">
             <div className="flex items-center gap-2 mb-4">
               <Hotel size={16} className="text-teal" />
@@ -2288,7 +1679,6 @@ function EnhancedCustomization({
             </div>
             
             <div className="space-y-4">
-              {/* Room Type with Images */}
               <div>
                 <p className="text-xs font-bold text-ink mb-2">Room Type</p>
                 <div className="grid grid-cols-2 gap-2">
@@ -2323,7 +1713,6 @@ function EnhancedCustomization({
                 </div>
               </div>
 
-              {/* Room View with Images */}
               <div>
                 <p className="text-xs font-bold text-ink mb-2">Room View</p>
                 <div className="grid grid-cols-2 gap-2">
@@ -2358,7 +1747,6 @@ function EnhancedCustomization({
                 </div>
               </div>
 
-              {/* Extra options */}
               <div className="flex flex-wrap gap-2 pt-1">
                 <button
                   type="button"
@@ -2386,7 +1774,6 @@ function EnhancedCustomization({
             </div>
           </Card>
 
-          {/* Meal Plan Section with Images */}
           <Card className="p-5 overflow-hidden">
             <div className="flex items-center gap-2 mb-4">
               <Utensils size={16} className="text-saffron" />
@@ -2428,7 +1815,6 @@ function EnhancedCustomization({
                 ))}
               </div>
 
-              {/* Dietary Preferences */}
               <div>
                 <p className="text-xs font-bold text-ink mb-2">Dietary Preference</p>
                 <div className="flex flex-wrap gap-2">
@@ -2456,7 +1842,6 @@ function EnhancedCustomization({
                 </div>
               </div>
 
-              {/* Special Occasion */}
               <div>
                 <p className="text-xs font-bold text-ink mb-2">Special Occasion</p>
                 <div className="flex flex-wrap gap-2">
@@ -2485,7 +1870,6 @@ function EnhancedCustomization({
             </div>
           </Card>
 
-          {/* Transport Section with Images */}
           <Card className="p-5 overflow-hidden">
             <div className="flex items-center gap-2 mb-4">
               <Car size={16} className="text-amber" />
@@ -2527,7 +1911,6 @@ function EnhancedCustomization({
                 ))}
               </div>
 
-              {/* Driver Options */}
               <div>
                 <p className="text-xs font-bold text-ink mb-2">Driver Service</p>
                 <div className="flex flex-wrap gap-2">
@@ -2555,7 +1938,6 @@ function EnhancedCustomization({
             </div>
           </Card>
 
-          {/* Activities Section with Images */}
           <Card className="p-5 overflow-hidden">
             <div className="flex items-center gap-2 mb-4">
               <Compass size={16} className="text-coral" />
@@ -2566,7 +1948,6 @@ function EnhancedCustomization({
             </div>
             
             <div className="space-y-4">
-              {/* Activity Level */}
               <div>
                 <p className="text-xs font-bold text-ink mb-2">Activity Level</p>
                 <div className="flex flex-wrap gap-2">
@@ -2593,7 +1974,6 @@ function EnhancedCustomization({
                 </div>
               </div>
 
-              {/* Activity Selection with Images */}
               <div>
                 <p className="text-xs font-bold text-ink mb-2">Select Activities</p>
                 <div className="grid grid-cols-2 gap-2">
@@ -2639,7 +2019,6 @@ function EnhancedCustomization({
                 </div>
               </div>
 
-              {/* Tour Options */}
               <div className="flex flex-wrap gap-3 pt-1">
                 <button
                   type="button"
@@ -2667,7 +2046,6 @@ function EnhancedCustomization({
             </div>
           </Card>
 
-          {/* Add-ons & Extras */}
           <Card className="p-5">
             <div className="flex items-center gap-2 mb-4">
               <Sparkles size={16} className="text-saffron" />
@@ -2706,7 +2084,6 @@ function EnhancedCustomization({
                 })}
               </div>
 
-              {/* Extra Services */}
               <div className="border-t border-ink/8 pt-3">
                 <p className="text-xs font-bold text-ink mb-2">Extra Services</p>
                 <div className="flex flex-wrap gap-2">
@@ -2736,7 +2113,6 @@ function EnhancedCustomization({
             </div>
           </Card>
 
-          {/* Feasibility */}
           <Card className="p-5 border-amber/20 bg-amber/5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -2767,7 +2143,6 @@ function EnhancedCustomization({
           </Card>
         </div>
 
-        {/* Sticky Pricing Summary */}
         <div className="space-y-5">
           <Card className="sticky top-28 p-5">
             <div className="flex items-center justify-between">
@@ -2857,160 +2232,247 @@ function EnhancedCustomization({
 }
 
 // =============================================================================
-// CHECKOUT COMPONENT - ENHANCED
+// DIGITAL PASS COMPONENT
 // =============================================================================
-
-function Checkout({ 
-  addedStop, 
-  upgraded, 
-  onNext,
-  vendors,
-  onConfirmVendor,
-  onConfirmAll,
-  isConfirmingAll,
-  arrivalTime
-}: { 
-  addedStop: boolean; 
-  upgraded: boolean; 
-  onNext: () => void;
-  vendors: VendorConfirmation[];
-  onConfirmVendor: (id: string) => void;
-  onConfirmAll: () => void;
-  isConfirmingAll: boolean;
-  arrivalTime?: string;
-}) {
-  const checks = ["Travel distance within daily limit", "Activity timing compatible with route", "Hotel check-in time achievable", "Driver rest buffer preserved", "Vendor availability confirmed"];
-  const hotelsPrice = upgraded ? 14200 : 13000;
-  const transportPrice = 18400;
-  const activitiesPrice = 12400;
-  const servicePrice = 4000;
-  const localStopPrice = addedStop ? 240 : 0;
-  const grandTotal = hotelsPrice + transportPrice + activitiesPrice + servicePrice + localStopPrice;
-  
-  return (
-    <div className="space-y-8 animate-fade-up">
-      <div className="section-heading">
-        <MiniLabel tone="teal">04 / Single Checkout</MiniLabel>
-        <h1>Everything aligned. <em>One calm checkout.</em></h1>
-        <p>A single view of every commitment before the route becomes real.</p>
-      </div>
-      
-      <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
-        <Card className="p-6">
-          <div className="flex items-center justify-between border-b border-ink/8 pb-5">
-            <div>
-              <p className="eyebrow text-ink-muted">Feasibility check</p>
-              <h2 className="mt-2 font-display text-2xl font-semibold tracking-tighter">The route is holding.</h2>
-            </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-moss/10 text-moss">
-              <CheckCircle2 size={23} />
-            </div>
-          </div>
-          
-          <div className="mt-6 space-y-3">
-            {checks.map((check, index) => (
-              <div key={check} className="flex items-center gap-3 rounded-xl bg-paper-dark px-4 py-3">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-moss/12 text-moss">
-                  <Check size={13} />
-                </span>
-                <span className="text-sm text-ink/78">{check}</span>
-                <span className="ml-auto text-[10px] font-bold uppercase tracking-[0.12em] text-moss">Passed</span>
-              </div>
-            ))}
-          </div>
-          
-          {/* Vendor Confirmation Section */}
-          <div className="mt-6 pt-6 border-t border-ink/8">
-            <VendorConfirmationList 
-              vendors={vendors}
-              onConfirmAll={onConfirmAll}
-              onConfirmVendor={onConfirmVendor}
-              isConfirmingAll={isConfirmingAll}
-            />
-          </div>
-          
-          {/* Timing Compatibility */}
-          <div className="mt-6">
-            <TimingCompatibility vendors={vendors} arrivalTime={arrivalTime || "17:30"} />
-          </div>
-          
-          <div className="mt-8 rounded-2xl border border-saffron/20 bg-saffron/8 p-4">
-            <div className="flex items-center gap-2">
-              <Sparkles size={16} className="text-saffron" />
-              <span className="text-xs font-bold text-ink">Small detail, big difference</span>
-            </div>
-            <p className="mt-2 text-sm leading-6 text-ink/72">
-              Your local stop is locked to the route buffer. If the road changes, Orbit will recalculate downstream plans—not leave you with a stale PDF.
-            </p>
-          </div>
-        </Card>
-        
-        <Card className="h-fit p-6">
-          <div className="flex items-center justify-between">
-            <p className="eyebrow text-ink-muted">Trip ledger</p>
-            <span className="flex items-center gap-1.5 text-[11px] font-bold text-moss">
-              <LockKeyhole size={13} /> Secure demo
-            </span>
-          </div>
-          
-          <div className="mt-5 space-y-4 text-sm">
-            <div className="flex justify-between">
-              <span className="text-ink-muted">Hotels · 2 nights</span>
-              <strong>₹{hotelsPrice.toLocaleString("en-IN")}</strong>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-ink-muted">Transport · 3 days</span>
-              <strong>₹{transportPrice.toLocaleString("en-IN")}</strong>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-ink-muted">Activities & guide</span>
-              <strong>₹{activitiesPrice.toLocaleString("en-IN")}</strong>
-            </div>
-            {addedStop && (
-              <div className="flex justify-between">
-                <span className="text-ink-muted">Local stop voucher</span>
-                <strong>₹{localStopPrice.toLocaleString("en-IN")}</strong>
-              </div>
-            )}
-            <div className="flex justify-between">
-              <span className="text-ink-muted">Orbit service</span>
-              <strong>₹{servicePrice.toLocaleString("en-IN")}</strong>
-            </div>
-          </div>
-          
-          <div className="my-5 border-t border-ink/8" />
-          
-          <div className="flex items-end justify-between">
-            <span className="text-sm font-bold text-ink">Trip total</span>
-            <span className="font-display text-3xl font-semibold tracking-tighter text-ink">
-              ₹{grandTotal.toLocaleString("en-IN")}
-            </span>
-          </div>
-          
-          <Button 
-            onClick={onNext} 
-            className="mt-6 h-12 w-full rounded-xl bg-teal font-bold text-white hover:bg-teal-dark"
-          >
-            <CreditCard size={16} className="mr-2" /> 
-            Confirm visual booking
-          </Button>
-          
-          <p className="mt-3 text-center text-[11px] leading-5 text-ink-muted">
-            Demo interaction only · no payment is processed
-          </p>
-        </Card>
-      </div>
-    </div>
-  );
-}
 
 function QrBlock() {
   return <div className="qr-block" aria-label="Decorative QR voucher"><div className="qr-grid">{Array.from({ length: 81 }).map((_, index) => <span key={index} className={cn("qr-cell", [0, 1, 2, 3, 9, 11, 18, 19, 20, 27, 29, 36, 37, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 72, 74, 76, 78, 80].includes(index) && "qr-fill")} />)}</div></div>;
 }
 
-// =============================================================================
-// DIGITAL PASS COMPONENT - ENHANCED
-// =============================================================================
+// WhatsApp Chat Simulator
+function WhatsAppChatSimulator({ 
+  vendorName = "Sharma Ji Samosa Hub",
+  vendorIcon = "🛍️",
+  onConfirm,
+  isConfirmed,
+}: { 
+  vendorName?: string;
+  vendorIcon?: string;
+  onConfirm?: () => void;
+  isConfirmed?: boolean;
+}) {
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: "1",
+      role: "assistant",
+      text: `👋 Welcome! This is ${vendorName}. How can I help you today?`,
+    },
+    {
+      id: "2",
+      role: "assistant",
+      text: "We have a special fixed rate for you: ₹120. No hidden charges!",
+    }
+  ]);
+  const [inputMessage, setInputMessage] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const [hasConfirmed, setHasConfirmed] = useState(isConfirmed || false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [showVoucher, setShowVoucher] = useState(false);
+  const [chatActive, setChatActive] = useState(true);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const getVendorResponse = (userMessage: string): string => {
+    const lower = userMessage.toLowerCase();
+    
+    if (lower.includes('hi') || lower.includes('hello') || lower.includes('hey')) {
+      return "Hello there! 👋 How can I assist you with your order today?";
+    }
+    if (lower.includes('price') || lower.includes('cost') || lower.includes('₹') || lower.includes('rate') || lower.includes('how much')) {
+      return "Our fixed price is ₹120 for this item. We maintain transparent rates for all our customers. Would you like to confirm your order? 🏷️";
+    }
+    if (lower.includes('time') || lower.includes('when') || lower.includes('arrival') || lower.includes('ready')) {
+      return "We'll have your order ready in 15 minutes. We're preparing it fresh! ⏱️";
+    }
+    if (lower.includes('confirm') || lower.includes('yes') || lower.includes('ok') || lower.includes('add') || lower.includes('order')) {
+      return "Excellent! ✅ Your order has been confirmed. I'll share a QR voucher with you shortly. We look forward to serving you!";
+    }
+    if (lower.includes('thank') || lower.includes('thanks') || lower.includes('thank you')) {
+      return "You're most welcome! 😊 It's our pleasure. Safe travels and enjoy your journey!";
+    }
+    if (lower.includes('voucher') || lower.includes('qr') || lower.includes('code')) {
+      return "Here's your QR voucher! 📱 Just show this at our shop for quick service. Tap the QR button below to see it.";
+    }
+    if (lower.includes('clean') || lower.includes('hygiene') || lower.includes('safety')) {
+      return "We maintain the highest hygiene standards! ⭐ 4.8★ rating for cleanliness. Our shop is regularly sanitized and all staff wear gloves. 🧤";
+    }
+    if (lower.includes('menu') || lower.includes('food') || lower.includes('eat') || lower.includes('snack')) {
+      return "We have a variety of freshly made snacks! 🌯 Our specialty is samosas, but we also have kachoris, jalebis, and refreshing chai. All at fixed, transparent prices!";
+    }
+    if (lower.includes('privacy') || lower.includes('phone') || lower.includes('number') || lower.includes('hidden')) {
+      return "Your privacy is protected! 🔒 I can see you as Customer #TRV-8029. Your real phone number is completely hidden. We love this system!";
+    }
+    if (lower.includes('bye') || lower.includes('goodbye')) {
+      return "Goodbye! 👋 It was a pleasure chatting with you. Safe travels and we hope to see you soon!";
+    }
+    
+    return "Thanks for your message! I'm here to help. Would you like to know about our menu, pricing, or confirm an order? Just ask! 😊";
+  };
+
+  const sendMessage = () => {
+    const trimmed = inputMessage.trim();
+    if (!trimmed || !chatActive) return;
+
+    const userMsg: ChatMessage = {
+      id: Date.now().toString(),
+      role: "user",
+      text: trimmed,
+    };
+
+    setMessages(prev => [...prev, userMsg]);
+    setInputMessage("");
+    setIsTyping(true);
+
+    setTimeout(() => {
+      const responseText = getVendorResponse(trimmed);
+      const vendorMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        text: responseText,
+      };
+      
+      setMessages(prev => [...prev, vendorMsg]);
+      setIsTyping(false);
+
+      if (trimmed.toLowerCase().includes('confirm') || 
+          trimmed.toLowerCase().includes('yes') || 
+          trimmed.toLowerCase().includes('ok')) {
+        setHasConfirmed(true);
+        if (onConfirm) onConfirm();
+        setTimeout(() => setShowVoucher(true), 500);
+      }
+    }, 800 + Math.random() * 1000);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-105 bg-[#e9efe9] rounded-2xl overflow-hidden border border-ink/8">
+      <div className="flex items-center gap-3 border-b border-ink/8 bg-paper px-4 py-3 shrink-0">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-saffron/15 text-2xl">
+          {vendorIcon}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-ink">{vendorName}</p>
+          <div className="flex items-center gap-1.5">
+            <span className={cn(
+              "h-2 w-2 rounded-full",
+              chatActive ? "bg-moss animate-pulse" : "bg-ink-muted"
+            )} />
+            <span className="text-[10px] text-ink-muted">
+              {chatActive ? "Online · Usually replies instantly" : "Offline"}
+            </span>
+          </div>
+        </div>
+        <button type="button" className="icon-button h-8 w-8" aria-label="More options">
+          <MoreVertical size={14} />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5">
+        {messages.map((msg) => (
+          <div key={msg.id} className={cn(
+            "flex",
+            msg.role === 'user' ? "justify-end" : "justify-start"
+          )}>
+            <div className={cn(
+              "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-5 shadow-sm",
+              msg.role === 'user' 
+                ? "bg-teal text-white rounded-br-sm" 
+                : "bg-white text-ink rounded-bl-sm"
+            )}>
+              {msg.text}
+            </div>
+          </div>
+        ))}
+        
+        {isTyping && (
+          <div className="flex justify-start">
+            <div className="bg-white rounded-2xl rounded-bl-sm px-4 py-3">
+              <div className="flex items-center gap-1">
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink/40 [animation-delay:-0.2s]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink/40 [animation-delay:-0.1s]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink/40" />
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {showVoucher && (
+          <div className="flex justify-start">
+            <div className="bg-white rounded-2xl rounded-bl-sm p-4 max-w-[85%] border border-teal/20 animate-fade-up">
+              <div className="flex items-center gap-3">
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-teal/10">
+                  <QrCode size={32} className="text-teal" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-ink">QR Voucher</p>
+                  <p className="text-[10px] text-ink-muted">Fixed rate · ₹120</p>
+                  <p className="text-[9px] text-teal font-semibold">✓ Verified</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="border-t border-ink/8 bg-paper px-3 py-2.5 shrink-0">
+        <div className="flex items-center gap-2">
+          <button type="button" className="icon-button h-8 w-8 shrink-0" aria-label="Attachment">
+            <Paperclip size={14} />
+          </button>
+          <div className="flex-1 relative">
+            <input
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Message vendor..."
+              className="w-full rounded-xl border border-ink/10 bg-paper-dark px-4 py-2 text-sm text-ink outline-none focus:border-teal/30 focus:ring-2 focus:ring-teal/10"
+              disabled={!chatActive}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={sendMessage}
+            disabled={!inputMessage.trim() || !chatActive}
+            className={cn(
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors",
+              inputMessage.trim() && chatActive
+                ? "bg-teal text-white hover:bg-teal-dark"
+                : "bg-ink/5 text-ink-muted/40 cursor-not-allowed"
+            )}
+          >
+            <Send size={15} />
+          </button>
+        </div>
+        {chatActive && (
+          <div className="mt-1 flex items-center gap-3 px-1">
+            <span className="text-[9px] text-ink-muted/60 flex items-center gap-1">
+              <LockKeyhole size={10} className="text-teal" />
+              Privacy relay active
+            </span>
+            <span className="text-[9px] text-ink-muted/60">
+              {messages.filter(m => m.role === 'assistant').length} vendor messages
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function DigitalPass({ 
   destination, 
@@ -3030,7 +2492,6 @@ function DigitalPass({
   
   const allConfirmed = vendors.every(v => v.status === 'confirmed');
   const pendingVendors = vendors.filter(v => v.status === 'pending');
-  const confirmedVendors = vendors.filter(v => v.status === 'confirmed');
   
   return (
     <div className="space-y-8 animate-fade-up">
@@ -3081,7 +2542,6 @@ function DigitalPass({
             </div>
           </div>
           
-          {/* Vendor Status Grid */}
           <div className="mt-6 border-t border-paper/15 pt-5">
             <p className="eyebrow text-paper/42">Vendor Status</p>
             <div className="mt-3 grid grid-cols-2 gap-2">
@@ -3162,22 +2622,36 @@ function DigitalPass({
             </div>
           </Card>
           
-          {/* WhatsApp Chat */}
           {showWhatsApp && (
-            <Card className="p-3 border-teal/20 animate-fade-up">
-              <WhatsAppChatSimulator 
-                vendorName="Sharma Ji Samosa Hub"
-                vendorIcon="🛍️"
-                onConfirm={() => {
-                  setVendorChatConfirmed(true);
-                  // Find the vendor and confirm them
-                  const vendor = vendors.find(v => v.type === 'vendor');
-                  if (vendor) onConfirmVendor(vendor.id);
-                }}
-                isConfirmed={vendorChatConfirmed}
-              />
-            </Card>
-          )}
+  <Card className="p-3 border-teal/20 animate-fade-up">
+    {vendors.some(v => v.type === 'vendor' && v.status === 'confirmed') ? (
+      <WhatsAppChatSimulator 
+        vendorName="Sharma Ji Samosa Hub"
+        vendorIcon="🛍️"
+        onConfirm={() => {
+          setVendorChatConfirmed(true);
+          const vendor = vendors.find(v => v.type === 'vendor');
+          if (vendor) onConfirmVendor(vendor.id);
+        }}
+        isConfirmed={vendorChatConfirmed}
+      />
+    ) : (
+      <div className="text-center py-8 text-ink-muted">
+        <LockKeyhole size={32} className="mx-auto mb-3 text-ink/30" />
+        <p className="text-sm font-bold">Vendor not yet confirmed</p>
+        <p className="text-xs mt-1">Please confirm the vendor first to start chatting</p>
+        <Button 
+          onClick={() => setShowWhatsApp(false)}
+          variant="outline"
+          size="sm"
+          className="mt-3"
+        >
+          Close
+        </Button>
+      </div>
+    )}
+  </Card>
+)}
           
           <button 
             type="button" 
@@ -3201,9 +2675,208 @@ function DigitalPass({
 }
 
 // =============================================================================
-// RIPPLE ENGINE COMPONENT - ENHANCED
+// RIPPLE ENGINE COMPONENT
 // =============================================================================
 
+type CascadeStep = {
+  id: string;
+  label: string;
+  icon: React.ElementType;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  description: string;
+  delay: number;
+};
+
+// LINE ~3200 - Replace CascadeAnimation component
+function CascadeAnimation({ 
+  isResolving, 
+  resolved,
+  onComplete,
+  vendors,  // ADD THIS NEW PROP
+}: { 
+  isResolving: boolean;
+  resolved: boolean;
+  onComplete?: () => void;
+  vendors: VendorConfirmation[];  // ADD THIS NEW TYPE
+}) {
+  const [steps, setSteps] = useState<CascadeStep[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [cascadeStarted, setCascadeStarted] = useState(false);
+
+  // Build cascade steps from actual vendors
+  const getCascadeSteps = useCallback((): CascadeStep[] => {
+    const activeVendors = vendors.filter(v => v.status === 'confirmed' || v.status === 'pending');
+    
+    // If no vendors, use a minimal default
+    if (activeVendors.length === 0) {
+      return [
+        { 
+          id: 'traveler', 
+          label: 'Traveler: Aanya S.', 
+          icon: UserRound, 
+          status: 'pending',
+          description: 'Updating itinerary',
+          delay: 0
+        },
+      ];
+    }
+
+    return activeVendors.map((vendor, index) => ({
+      id: vendor.id,
+      label: vendor.name,
+      icon: vendor.icon,
+      status: 'pending' as const,
+      description: `Updating ${vendor.type} details`,
+      delay: index * 150, // FASTER: 300ms between steps
+    }));
+  }, [vendors]);
+
+  // Start cascade when resolving
+  useEffect(() => {
+    if (isResolving && !cascadeStarted && !resolved) {
+      setCascadeStarted(true);
+      const initialSteps = getCascadeSteps();
+      setSteps(initialSteps);
+      setIsProcessing(true);
+      setProgress(0);
+      setCompletedCount(0);
+
+      const totalSteps = initialSteps.length;
+      let completed = 0;
+
+      initialSteps.forEach((step, index) => {
+        const delay = step.delay + 200;
+
+        setTimeout(() => {
+          setSteps(prev => prev.map((s, i) => 
+            i === index ? { ...s, status: 'processing' } : s
+          ));
+
+          // FASTER: 300ms processing
+          setTimeout(() => {
+            const success = Math.random() > 0.05;
+            setSteps(prev => prev.map((s, i) => 
+              i === index ? { ...s, status: success ? 'completed' : 'failed' } : s
+            ));
+            
+            completed++;
+            setCompletedCount(completed);
+            setProgress((completed / totalSteps) * 100);
+
+            if (completed === totalSteps) {
+              setTimeout(() => {
+                setIsProcessing(false);
+                if (onComplete) onComplete();
+              }, 200);
+            }
+          },150 + Math.random() * 100);
+        }, delay);
+      });
+    }
+  }, [isResolving, resolved, cascadeStarted, getCascadeSteps, onComplete]);
+
+  useEffect(() => {
+    if (resolved) {
+      setIsProcessing(false);
+    }
+  }, [resolved]);
+
+  const allCompleted = steps.every(s => s.status === 'completed') && steps.length > 0;
+  const hasFailed = steps.some(s => s.status === 'failed');
+
+  if (steps.length === 0 && !isResolving) {
+    return (
+      <div className="text-center py-4 text-ink-muted text-sm">
+        No vendors to update
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-bold text-ink">Cascade Update</p>
+        <span className="text-[10px] font-bold text-ink-muted">
+          {completedCount}/{steps.length} complete
+        </span>
+      </div>
+
+      <Progress value={progress} className="h-1.5" />
+
+      <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+        {steps.map((step) => {
+          const Icon = step.icon;
+          const isCompleted = step.status === 'completed';
+          const isProcessing = step.status === 'processing';
+          const isFailed = step.status === 'failed';
+          const isPending = step.status === 'pending';
+
+          return (
+            <div 
+              key={step.id}
+              className={cn(
+                "flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-all duration-300",
+                isCompleted ? "border-moss/20 bg-moss/5" : "border-ink/8 bg-paper-dark/30",
+                isProcessing && "border-amber/20 bg-amber/5"
+              )}
+            >
+              <div className={cn(
+                "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-all duration-300",
+                isCompleted ? "bg-moss/10 text-moss" : "bg-ink/5 text-ink-muted",
+                isProcessing && "bg-amber/10 text-amber"
+              )}>
+                <Icon size={14} />
+              </div>
+              
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-ink">{step.label}</p>
+                <p className="text-[10px] text-ink-muted">{step.description}</p>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                {isCompleted && (
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-moss animate-fade-up">
+                    <CheckCircle2 size={13} /> Done
+                  </span>
+                )}
+                {isProcessing && (
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-amber">
+                    <Loader2 size={13} className="animate-spin" /> Processing
+                  </span>
+                )}
+                {isFailed && (
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-coral">
+                    <AlertTriangle size={13} /> Failed
+                  </span>
+                )}
+                {isPending && (
+                  <span className="text-[10px] text-ink-muted/50">Waiting</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {allCompleted && !isProcessing && (
+        <div className="rounded-xl bg-moss/10 p-3 text-center text-xs font-bold text-moss animate-fade-up">
+          <CheckCircle2 size={16} className="inline mr-2" />
+          All systems updated! Trip successfully adapted.
+        </div>
+      )}
+
+      {hasFailed && !isProcessing && (
+        <div className="rounded-xl bg-coral/10 p-3 text-center text-xs font-bold text-coral animate-fade-up">
+          <AlertTriangle size={16} className="inline mr-2" />
+          Some updates failed. Manual intervention may be needed.
+        </div>
+      )}
+    </div>
+  );
+}
+// LINE ~3350 - Replace RippleOptions component
 function RippleOptions({ 
   onResolve, 
   resolved, 
@@ -3218,7 +2891,7 @@ function RippleOptions({
   const [selectedKey, setSelectedKey] = useState("A");
   const [showCascade, setShowCascade] = useState(false);
   const [cascadeComplete, setCascadeComplete] = useState(false);
-  
+
   const options = [
     { 
       key: "A", 
@@ -3251,15 +2924,17 @@ function RippleOptions({
 
   const handleResolve = () => {
     setShowCascade(true);
-    // The cascade will complete and call onResolve via the onComplete callback
   };
 
   const handleCascadeComplete = () => {
     setCascadeComplete(true);
-    onResolve(selectedKey);
+    setTimeout(() => {
+      onResolve(selectedKey);
+    }, 300);
   };
 
-  const allVendorsConfirmed = vendors.every(v => v.status === 'confirmed');
+  const activeVendors = vendors.filter(v => v.status === 'confirmed' || v.status === 'pending');
+  const hasNoVendors = activeVendors.length === 0;
 
   return (
     <div className="space-y-8 animate-fade-up">
@@ -3278,7 +2953,7 @@ function RippleOptions({
             <div>
               <MiniLabel tone="amber">Conflict detected</MiniLabel>
               <h2 className="mt-2 font-display text-2xl font-semibold leading-tight tracking-tighter text-ink">Heavy rain at 2:00 PM</h2>
-              <p className="mt-3 text-sm leading-6 text-ink/70">Outdoor trek is no longer safe. Three downstream bookings are affected.</p>
+              <p className="mt-3 text-sm leading-6 text-ink/70">Outdoor trek is no longer safe. {activeVendors.length > 0 ? `${activeVendors.length} vendor${activeVendors.length > 1 ? 's' : ''}` : 'No'} affected.</p>
             </div>
           </div>
           
@@ -3293,7 +2968,7 @@ function RippleOptions({
             </div>
             <div className="flex justify-between">
               <span className="text-ink-muted">Operators impacted</span>
-              <strong>4 vendors</strong>
+              <strong>{activeVendors.length > 0 ? `${activeVendors.length} vendors` : 'None'}</strong>
             </div>
           </div>
           
@@ -3360,40 +3035,50 @@ function RippleOptions({
             ))}
           </div>
           
-          {/* Cascade Animation */}
           {showCascade && (
             <div className="mt-5 pt-5 border-t border-ink/8">
               <CascadeAnimation 
                 isResolving={isResolving}
                 resolved={cascadeComplete}
                 onComplete={handleCascadeComplete}
+                vendors={vendors}  // PASS VENDORS TO CASCADE
               />
             </div>
           )}
           
           <Button 
             onClick={handleResolve} 
-            disabled={resolved || isResolving || showCascade}
+            disabled={resolved || isResolving || showCascade || hasNoVendors}
             className={cn(
               "mt-5 h-11 w-full rounded-xl font-bold",
-              resolved ? "bg-moss text-white hover:bg-moss" : "bg-ink text-paper hover:bg-ink/90"
+              resolved ? "bg-moss text-white hover:bg-moss" : "bg-ink text-paper hover:bg-ink/90",
+              hasNoVendors && !resolved && "opacity-50 cursor-not-allowed"
             )}
           >
             {resolved ? (
               <><Check size={16} className="mr-2" /> Ripple resolved across trip</>
             ) : isResolving || showCascade ? (
               <><Loader2 size={16} className="mr-2 animate-spin" /> Resolving...</>
+            ) : hasNoVendors ? (
+              <>No vendors to update</>
             ) : (
               <><Zap size={16} className="mr-2 text-saffron-light" /> Resolve with Option {selectedKey}</>
             )}
           </Button>
+          
+          {hasNoVendors && !resolved && (
+            <p className="mt-2 text-center text-[10px] text-ink-muted">
+              All vendors have been removed. Nothing to update.
+            </p>
+          )}
         </Card>
       </div>
     </div>
   );
 }
-
-// Replace the Complete function in Home.tsx with this enhanced version
+// =============================================================================
+// COMPLETE COMPONENT
+// =============================================================================
 
 function Complete({ resolved, resolutionKey, vendors, destination, routePlan }: { 
   resolved: boolean; 
@@ -3421,11 +3106,9 @@ function Complete({ resolved, resolutionKey, vendors, destination, routePlan }: 
   const bookingRef = `TRP-${String(8000 + Math.floor(Math.random() * 1000))}`;
   const travelDate = format(new Date(), "dd MMM yyyy");
   const allConfirmed = vendors.every(v => v.status === 'confirmed');
-  const confirmedCount = vendors.filter(v => v.status === 'confirmed').length;
   
   return (
     <div className="space-y-8 animate-fade-up">
-      {/* Confirmation Header */}
       <div className="flex flex-col items-center text-center">
         <div className="inline-flex items-center gap-2 rounded-full bg-moss/10 px-4 py-2 text-xs font-bold text-moss">
           <CheckCircle2 size={16} /> Trip Confirmed
@@ -3438,9 +3121,7 @@ function Complete({ resolved, resolutionKey, vendors, destination, routePlan }: 
         </p>
       </div>
 
-      {/* Main Ticket Card */}
       <div className="relative overflow-hidden rounded-3xl border-2 border-teal/20 bg-white shadow-[0_18px_50px_rgba(23,34,35,0.12)]">
-        {/* Ticket perforation line */}
         <div className="absolute left-0 right-0 top-1/2 z-0 flex -translate-y-1/2 justify-between px-2 opacity-20">
           <div className="flex w-full justify-between">
             {Array.from({ length: 30 }).map((_, i) => (
@@ -3450,9 +3131,7 @@ function Complete({ resolved, resolutionKey, vendors, destination, routePlan }: 
         </div>
         
         <div className="relative z-10 grid grid-cols-1 md:grid-cols-[1.4fr_1fr]">
-          {/* Left side - Trip details */}
           <div className="border-b border-ink/10 p-6 md:border-b-0 md:border-r md:p-8">
-            {/* Header with Logo */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Logo variant="tiny" />
@@ -3463,13 +3142,11 @@ function Complete({ resolved, resolutionKey, vendors, destination, routePlan }: 
               </Badge>
             </div>
 
-            {/* Trip name */}
             <h2 className="mt-4 font-display text-2xl font-semibold tracking-tighter">
               {destination}
             </h2>
             <p className="text-xs text-ink-muted">{routePlan.distance} · {routePlan.driveTime}</p>
 
-            {/* Traveler info */}
             <div className="mt-6 grid grid-cols-2 gap-3">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">Traveler</p>
@@ -3481,7 +3158,6 @@ function Complete({ resolved, resolutionKey, vendors, destination, routePlan }: 
               </div>
             </div>
 
-            {/* Vendor status */}
             <div className="mt-6 rounded-xl bg-paper/60 p-4">
               <p className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">Vendor Confirmations</p>
               <div className="mt-2 grid grid-cols-2 gap-2">
@@ -3501,22 +3177,18 @@ function Complete({ resolved, resolutionKey, vendors, destination, routePlan }: 
               </div>
             </div>
 
-            {/* Price */}
             <div className="mt-4 flex items-end justify-between border-t border-ink/8 pt-4">
               <span className="text-xs text-ink-muted">Total paid</span>
               <span className="font-display text-2xl font-bold tracking-tighter">₹49,240</span>
             </div>
           </div>
 
-          {/* Right side - QR & Quick actions */}
           <div className="flex flex-col items-center justify-center gap-4 p-6 md:p-8">
-            {/* QR Code */}
             <div className="flex h-32 w-32 items-center justify-center rounded-xl bg-white shadow-sm border border-ink/8">
               <QrCode size={64} className="text-ink/60" />
             </div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">Scan for trip details</p>
             
-            {/* Quick action buttons */}
             <div className="mt-2 flex w-full flex-col gap-2 sm:flex-row">
               <Button 
                 onClick={() => toast.success("Ticket saved to device")}
@@ -3535,7 +3207,6 @@ function Complete({ resolved, resolutionKey, vendors, destination, routePlan }: 
           </div>
         </div>
 
-        {/* Bottom strip - perforated edge */}
         <div className="relative z-10 border-t border-dashed border-ink/15 px-6 py-3 text-center md:px-8">
           <p className="text-[10px] text-ink-muted/60">
             <LockKeyhole size={12} className="inline mr-1.5" />
@@ -3544,7 +3215,6 @@ function Complete({ resolved, resolutionKey, vendors, destination, routePlan }: 
         </div>
       </div>
 
-      {/* Day-by-day itinerary */}
       <Card className="overflow-hidden p-0">
         <div className="border-b border-ink/8 px-6 py-4">
           <h3 className="font-display text-lg font-semibold tracking-tighter">Your Itinerary</h3>
@@ -3570,7 +3240,6 @@ function Complete({ resolved, resolutionKey, vendors, destination, routePlan }: 
         </div>
       </Card>
 
-      {/* Ripple resolution (if resolved) */}
       {resolved && (
         <Card className="border-amber/20 bg-amber/5 p-5">
           <div className="flex items-start gap-3">
@@ -3586,7 +3255,6 @@ function Complete({ resolved, resolutionKey, vendors, destination, routePlan }: 
         </Card>
       )}
 
-      {/* Emergency contacts */}
       <Card className="border-teal/15 bg-teal/5 p-5">
         <div className="flex items-start gap-3">
           <Phone size={18} className="text-teal shrink-0" />
@@ -3598,7 +3266,6 @@ function Complete({ resolved, resolutionKey, vendors, destination, routePlan }: 
         </div>
       </Card>
 
-      {/* Action buttons */}
       <div className="flex flex-col gap-3 sm:flex-row">
         <Button 
           onClick={() => toast.success("Trip details emailed")}
@@ -3623,197 +3290,6 @@ function Complete({ resolved, resolutionKey, vendors, destination, routePlan }: 
       </div>
     </div>
   );
-}
-
-// =============================================================================
-// TRAVELER VIEW COMPONENT
-// =============================================================================
-
-function TravelerView({
-  step,
-  setStep,
-  destination,
-  setDestination,
-  routePlan,
-  budget,
-  setBudget,
-  dates,
-  setDates,
-  durationDays,
-  setDurationDays,
-  pickupMode,
-  setPickupMode,
-  pickupAddress,
-  setPickupAddress,
-  styles,
-  setStyles,
-  addedStop,
-  onAddStop,
-  tripTotal,
-  upgraded,
-  setUpgraded,
-  vendorConfirmed,
-  onAdapt,
-  onResolve,
-  resolved,
-  resolutionKey,
-  adults,
-  setAdults,
-  childrenCount,
-  setChildrenCount,
-  infants,
-  setInfants,
-  selectedPOI,
-  setSelectedPOI,
-  poiChatOpen,
-  setPoiChatOpen,
-  addedPOIs,
-  setAddedPOIs,
-  chatMessages,
-  setChatMessages,
-  chatTyping,
-  setChatTyping,
-  vendors,
-  onConfirmVendor,
-  onConfirmAll,
-  isConfirmingAll,
-  isResolving,
-}: {
-  step: TravelerStep;
-  setStep: (step: TravelerStep) => void;
-  destination: string;
-  setDestination: (value: string) => void;
-  routePlan: RoutePlan;
-  budget: number[];
-  setBudget: (value: number[]) => void;
-  dates: string;
-  setDates: (value: string) => void;
-  durationDays: number;
-  setDurationDays: (value: number) => void;
-  pickupMode: PickupMode;
-  setPickupMode: (value: PickupMode) => void;
-  pickupAddress: string;
-  setPickupAddress: (value: string) => void;
-  styles: string[];
-  setStyles: (value: string[]) => void;
-  addedStop: boolean;
-  onAddStop: () => void;
-  tripTotal: number;
-  upgraded: boolean;
-  setUpgraded: (value: boolean) => void;
-  vendorConfirmed: boolean;
-  onAdapt: () => void;
-  onResolve: (key: string) => void;
-  resolved: boolean;
-  resolutionKey: string;
-  adults: number;
-  setAdults: (value: number) => void;
-  childrenCount: number;
-  setChildrenCount: (value: number) => void;
-  infants: number;
-  setInfants: (value: number) => void;
-  selectedPOI: POI | null;
-  setSelectedPOI: (poi: POI | null) => void;
-  poiChatOpen: boolean;
-  setPoiChatOpen: (open: boolean) => void;
-  addedPOIs: POI[];
-  setAddedPOIs: (pois: POI[]) => void;
-  chatMessages: ChatMessage[];
-  setChatMessages: (messages: ChatMessage[]) => void;
-  chatTyping: boolean;
-  setChatTyping: (typing: boolean) => void;
-  vendors: VendorConfirmation[];
-  onConfirmVendor: (id: string) => void;
-  onConfirmAll: () => void;
-  isConfirmingAll: boolean;
-  isResolving: boolean;
-}) {
-  switch (step) {
-    case 0:
-      return (
-        <IntakeCanvas
-          destination={destination}
-          setDestination={setDestination}
-          routePlan={routePlan}
-          budget={budget}
-          setBudget={setBudget}
-          dates={dates}
-          setDates={setDates}
-          durationDays={durationDays}
-          setDurationDays={setDurationDays}
-          pickupMode={pickupMode}
-          setPickupMode={setPickupMode}
-          pickupAddress={pickupAddress}
-          setPickupAddress={setPickupAddress}
-          styles={styles}
-          setStyles={setStyles}
-          adults={adults}
-          setAdults={setAdults}
-          childrenCount={childrenCount}
-          setChildrenCount={setChildrenCount}
-          infants={infants}
-          setInfants={setInfants}
-          onBuild={() => setStep(1)}
-          onDestinationClick={(dest) => setDestination(dest)}
-        />
-      );
-    case 1:
-      return <RouteRadar 
-        destination={destination} 
-        routePlan={routePlan} 
-        addedStop={addedStop} 
-        onAddStop={onAddStop} 
-        tripTotal={tripTotal} 
-        onNext={() => setStep(2)}
-        selectedPOI={selectedPOI}
-        setSelectedPOI={setSelectedPOI}
-        poiChatOpen={poiChatOpen}
-        setPoiChatOpen={setPoiChatOpen}
-        addedPOIs={addedPOIs}
-        setAddedPOIs={setAddedPOIs}
-        chatMessages={chatMessages}
-        setChatMessages={setChatMessages}
-        chatTyping={chatTyping}
-        setChatTyping={setChatTyping}
-      />;
-    case 2:
-      return <EnhancedCustomization upgraded={upgraded} setUpgraded={setUpgraded} addedStop={addedStop} tripTotal={tripTotal} onNext={() => setStep(3)} />;
-    case 3:
-      return <Checkout 
-        addedStop={addedStop} 
-        upgraded={upgraded} 
-        onNext={() => setStep(4)}
-        vendors={vendors}
-        onConfirmVendor={onConfirmVendor}
-        onConfirmAll={onConfirmAll}
-        isConfirmingAll={isConfirmingAll}
-      />;
-    case 4:
-      return <DigitalPass 
-        destination={destination} 
-        onAdapt={onAdapt} 
-        vendorConfirmed={vendorConfirmed}
-        vendors={vendors}
-        onConfirmVendor={onConfirmVendor}
-      />;
-    case 5:
-      return <RippleOptions 
-        onResolve={onResolve} 
-        resolved={resolved} 
-        isResolving={isResolving}
-        vendors={vendors}
-      />;
-    case 6:
-      return <Complete 
-        resolved={resolved} 
-        resolutionKey={resolutionKey}
-        vendors={vendors}
-        destination={destination}
-        routePlan={routePlan}
-      />;
-    default:
-      return null;
-  }
 }
 
 // =============================================================================
@@ -3915,7 +3391,6 @@ function OperatorDashboard({ resolved, onResolve, vendors }: { resolved: boolean
               </div>
             </div>
             
-            {/* Vendor status summary */}
             <div className="mt-4 space-y-1.5">
               <p className="text-[10px] font-bold uppercase text-ink-muted">Vendor Status</p>
               {vendors.map((vendor) => {
@@ -3977,60 +3452,54 @@ function OperatorDashboard({ resolved, onResolve, vendors }: { resolved: boolean
       </div>
       
       {showRipple && (
-        <RippleModal onClose={() => setShowRipple(false)} onResolve={() => { onResolve(); setShowRipple(false); }} />
-      )}
-    </div>
-  );
-}
-
-function RippleModal({ onClose, onResolve }: { onClose: () => void; onResolve: () => void }) {
-  return (
-    <div className="modal-backdrop">
-      <div className="modal-card">
-        <div className="flex items-start justify-between border-b border-ink/8 p-6">
-          <div>
-            <MiniLabel tone="amber">Ripple Engine · TRP-8029</MiniLabel>
-            <h2 className="mt-2 font-display text-2xl font-semibold tracking-tighter">Resolve the rain ripple</h2>
-            <p className="mt-2 text-sm text-ink-muted">The graph found three safe paths for Aanya's Day 2.</p>
+        <div className="modal-backdrop">
+          <div className="modal-card">
+            <div className="flex items-start justify-between border-b border-ink/8 p-6">
+              <div>
+                <MiniLabel tone="amber">Ripple Engine · TRP-8029</MiniLabel>
+                <h2 className="mt-2 font-display text-2xl font-semibold tracking-tighter">Resolve the rain ripple</h2>
+                <p className="mt-2 text-sm text-ink-muted">The graph found three safe paths for Aanya's Day 2.</p>
+              </div>
+              <button type="button" className="icon-button" onClick={() => setShowRipple(false)}><X size={16} /></button>
+            </div>
+            
+            <div className="space-y-3 p-6">
+              {[
+                { label: "A", title: "Swap for Indoor Art Gallery", detail: "Best preference match · ₹0 delta", tone: "teal" },
+                { label: "B", title: "Reschedule trek to Day 3", detail: "Adds 45 minutes to final day · +₹400", tone: "neutral" },
+                { label: "C", title: "Issue instant refund credit", detail: "Preserve route · −₹1,800", tone: "neutral" }
+              ].map((option) => (
+                <button 
+                  key={option.label} 
+                  type="button" 
+                  onClick={option.label === "A" ? () => { onResolve(); setShowRipple(false); } : () => toast.info(`${option.title} selected for visual comparison`)} 
+                  className={cn("ripple-modal-option", option.tone === "teal" && "ripple-modal-option-active")}
+                >
+                  <span className={cn("flex h-9 w-9 items-center justify-center rounded-xl text-sm font-bold", option.tone === "teal" ? "bg-teal text-white" : "bg-ink/7 text-ink-muted")}>
+                    {option.label}
+                  </span>
+                  <span className="flex-1 text-left">
+                    <strong className="block text-sm text-ink">{option.title}</strong>
+                    <small className="mt-1 block text-xs text-ink-muted">{option.detail}</small>
+                  </span>
+                  {option.tone === "teal" ? (
+                    <span className="rounded-full bg-teal/10 px-2 py-1 text-[10px] font-bold text-teal">Recommended</span>
+                  ) : (
+                    <ArrowRight size={15} className="text-ink-muted" />
+                  )}
+                </button>
+              ))}
+            </div>
+            
+            <div className="flex items-center justify-between border-t border-ink/8 bg-paper-dark px-6 py-4">
+              <span className="text-xs text-ink-muted">Updates 5 connected surfaces</span>
+              <Button onClick={() => { onResolve(); setShowRipple(false); }} className="h-10 rounded-xl bg-ink px-4 text-xs font-bold text-paper hover:bg-ink/90">
+                Resolve cascade <ArrowRight size={14} className="ml-2" />
+              </Button>
+            </div>
           </div>
-          <button type="button" className="icon-button" onClick={onClose}><X size={16} /></button>
         </div>
-        
-        <div className="space-y-3 p-6">
-          {[
-            { label: "A", title: "Swap for Indoor Art Gallery", detail: "Best preference match · ₹0 delta", tone: "teal" },
-            { label: "B", title: "Reschedule trek to Day 3", detail: "Adds 45 minutes to final day · +₹400", tone: "neutral" },
-            { label: "C", title: "Issue instant refund credit", detail: "Preserve route · −₹1,800", tone: "neutral" }
-          ].map((option) => (
-            <button 
-              key={option.label} 
-              type="button" 
-              onClick={option.label === "A" ? onResolve : () => toast.info(`${option.title} selected for visual comparison`)} 
-              className={cn("ripple-modal-option", option.tone === "teal" && "ripple-modal-option-active")}
-            >
-              <span className={cn("flex h-9 w-9 items-center justify-center rounded-xl text-sm font-bold", option.tone === "teal" ? "bg-teal text-white" : "bg-ink/7 text-ink-muted")}>
-                {option.label}
-              </span>
-              <span className="flex-1 text-left">
-                <strong className="block text-sm text-ink">{option.title}</strong>
-                <small className="mt-1 block text-xs text-ink-muted">{option.detail}</small>
-              </span>
-              {option.tone === "teal" ? (
-                <span className="rounded-full bg-teal/10 px-2 py-1 text-[10px] font-bold text-teal">Recommended</span>
-              ) : (
-                <ArrowRight size={15} className="text-ink-muted" />
-              )}
-            </button>
-          ))}
-        </div>
-        
-        <div className="flex items-center justify-between border-t border-ink/8 bg-paper-dark px-6 py-4">
-          <span className="text-xs text-ink-muted">Updates 5 connected surfaces</span>
-          <Button onClick={onResolve} className="h-10 rounded-xl bg-ink px-4 text-xs font-bold text-paper hover:bg-ink/90">
-            Resolve cascade <ArrowRight size={14} className="ml-2" />
-          </Button>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -4194,16 +3663,12 @@ function VendorView({ confirmed, onConfirm }: { confirmed: boolean; onConfirm: (
 // MAIN HOME COMPONENT
 // =============================================================================
 
-const BASE_TRIP_PRICE = 47800;
-const LOCAL_STOP_PRICE = 240;
-
 export default function Home() {
   const [mode, setMode] = useState<Mode>("traveler");
   const [step, setStep] = useState<TravelerStep>(0);
   const [destination, setDestination] = useState("Jaipur, Rajasthan");
   const routePlan = useMemo(() => createRoutePlan(destination), [destination]);
 
-  // Intake Canvas form state
   const [budget, setBudget] = useState([50000]);
   const [dates, setDates] = useState("");
   const [durationDays, setDurationDays] = useState(3);
@@ -4214,10 +3679,7 @@ export default function Home() {
   const [childrenCount, setChildrenCount] = useState(0);
   const [infants, setInfants] = useState(0);
 
-  // Legacy state for the old stop system
   const [addedStop, setAddedStop] = useState(false);
-  
-  // New POI system state
   const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
   const [poiChatOpen, setPoiChatOpen] = useState(false);
   const [addedPOIs, setAddedPOIs] = useState<POI[]>([]);
@@ -4232,7 +3694,12 @@ export default function Home() {
   const [isConfirmingAll, setIsConfirmingAll] = useState(false);
   const [isResolving, setIsResolving] = useState(false);
 
-  // Vendor state
+  // Payment state
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [paymentConfirmation, setPaymentConfirmation] = useState<PaymentConfirmation | null>(null);
+  const [showPaymentConfirmation, setShowPaymentConfirmation] = useState(false);
+
   const [vendors, setVendors] = useState<VendorConfirmation[]>([
     { id: 'hotel', name: 'Kesar Bagh Haveli', type: 'hotel', icon: Hotel, status: 'pending', price: 14200 },
     { id: 'driver', name: 'Driver · Rajesh K.', type: 'driver', icon: Car, status: 'pending', price: 18400 },
@@ -4241,7 +3708,6 @@ export default function Home() {
     { id: 'activity', name: 'Local Food Experience', type: 'activity', icon: UsersRound, status: 'pending', price: 3500 },
   ]);
 
-  // Update tripTotal when POIs are added
   useEffect(() => {
     const poiTotal = addedPOIs.reduce((sum, p) => sum + p.detourCost, 0);
     const baseWithStop = BASE_TRIP_PRICE + (addedStop ? LOCAL_STOP_PRICE : 0);
@@ -4254,7 +3720,6 @@ export default function Home() {
     toast.success("Local stop added to route · +₹240");
   };
 
-  // Vendor confirmation handlers
   const handleConfirmVendor = (id: string) => {
     setVendors(prev => prev.map(v => 
       v.id === id && v.status === 'pending' 
@@ -4288,19 +3753,38 @@ export default function Home() {
     }, pendingVendors.length * 600 + 1000);
   };
 
-  // Ripple Engine handlers
   const handleResolve = (key: string) => {
-    setIsResolving(true);
-    setResolutionKey(key);
+  setIsResolving(true);
+  setResolutionKey(key);
+  
+  // Faster: 1500ms instead of 3000ms
+  setTimeout(() => {
+    setVendors(prev => prev.map(v => ({ ...v, status: 'confirmed' })));
+    setResolved(true);
+    setIsResolving(false);
+    setStep(6);
+    toast.success(`Ripple resolved with Option ${key}!`);
+  }, 1500);
+};
+  const handlePay = () => {
+    if (!selectedPaymentMethod) return;
     
-    // Simulate cascade resolution
+    setIsProcessingPayment(true);
+    
     setTimeout(() => {
-      setVendors(prev => prev.map(v => ({ ...v, status: 'confirmed' })));
-      setResolved(true);
-      setIsResolving(false);
-      setStep(6);
-      toast.success(`Ripple resolved with Option ${key}!`);
-    }, 3000);
+      const confirmation: PaymentConfirmation = {
+        method: selectedPaymentMethod,
+        timestamp: new Date().toISOString(),
+        transactionId: `TRP-${String(8000 + Math.floor(Math.random() * 1000))}`,
+        amount: tripTotal,
+        status: 'completed'
+      };
+      
+      setPaymentConfirmation(confirmation);
+      setShowPaymentConfirmation(true);
+      setIsProcessingPayment(false);
+      toast.success("Payment successful! Your trip is confirmed.");
+    }, 2000);
   };
 
   const modeMeta = useMemo(() => ({
@@ -4333,6 +3817,10 @@ export default function Home() {
     setAdults(2);
     setChildrenCount(0);
     setInfants(0);
+    setSelectedPaymentMethod(null);
+    setIsProcessingPayment(false);
+    setPaymentConfirmation(null);
+    setShowPaymentConfirmation(false);
     setVendors([
       { id: 'hotel', name: 'Kesar Bagh Haveli', type: 'hotel', icon: Hotel, status: 'pending', price: 14200 },
       { id: 'driver', name: 'Driver · Rajesh K.', type: 'driver', icon: Car, status: 'pending', price: 18400 },
@@ -4345,6 +3833,394 @@ export default function Home() {
   };
   
   const openAdapt = () => setStep(5);
+
+  // =============================================================================
+  // TRAVELER VIEW RENDER
+  // =============================================================================
+
+  const renderTravelerView = () => {
+    switch (step) {
+      case 0:
+        return (
+          <IntakeCanvas
+            destination={destination}
+            setDestination={setDestination}
+            routePlan={routePlan}
+            budget={budget}
+            setBudget={setBudget}
+            dates={dates}
+            setDates={setDates}
+            durationDays={durationDays}
+            setDurationDays={setDurationDays}
+            pickupMode={pickupMode}
+            setPickupMode={setPickupMode}
+            pickupAddress={pickupAddress}
+            setPickupAddress={setPickupAddress}
+            styles={styles}
+            setStyles={setStyles}
+            adults={adults}
+            setAdults={setAdults}
+            childrenCount={childrenCount}
+            setChildrenCount={setChildrenCount}
+            infants={infants}
+            setInfants={setInfants}
+            onBuild={() => setStep(1)}
+            onDestinationClick={(dest) => setDestination(dest)}
+          />
+        );
+      case 1:
+        return (
+          <div className="space-y-8 animate-fade-up">
+            <div className="section-heading flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+              <div>
+                <MiniLabel tone="teal">02 / Route Radar</MiniLabel>
+                <h1>Your route with <em>optional discoveries.</em></h1>
+                <p>The main route stays clear. Click any POI to explore if it's worth the detour.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <StatusChip tone="green">Route ready</StatusChip>
+                <StatusChip tone="teal">{addedPOIs.length > 0 ? `${addedPOIs.length} stop${addedPOIs.length > 1 ? 's' : ''} added` : 'Tap POIs to explore'}</StatusChip>
+              </div>
+            </div>
+            
+            <div className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
+              <Card className="overflow-hidden p-0">
+                <div className="flex items-center justify-between border-b border-ink/8 px-5 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal/10 text-teal">
+                      <Route size={17} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-ink">
+                        {routePlan.origin} → {routePlan.destination}
+                      </p>
+                      <p className="text-xs text-ink-muted">
+                        {routePlan.distance} · {routePlan.driveTime} · {addedPOIs.length > 0 ? `${addedPOIs.length} detour${addedPOIs.length > 1 ? 's' : ''}` : 'Direct route'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-1.5">
+                    {[1, 2, 3].map((day) => (
+                      <button 
+                        key={day} 
+                        type="button" 
+                        onClick={() => { 
+                          toast.success(`Day ${day} route loaded`); 
+                        }} 
+                        className={cn("day-tab", day === 1 && "day-tab-active")}
+                      >
+                        Day {day}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="relative h-112.5 overflow-hidden bg-[#cbd9d3]">
+                  <RouteRadarMap 
+                    destination={destination}
+                    originLabel={routePlan.origin}
+                    onPOIClick={(poi) => {
+                      setSelectedPOI(poi);
+                      setPoiChatOpen(true);
+                      setChatMessages([{
+                        id: `assistant-${Date.now()}`,
+                        role: "assistant",
+                        text: `👋 Hi! I'm your AI assistant for ${poi.name}. ${poi.description} The detour takes ${poi.detourTime} and costs ₹${poi.detourCost}. Would you like to add it to your route?`
+                      }]);
+                    }}
+                    selectedPOI={selectedPOI}
+                    addedPOIs={addedPOIs}
+                  />
+                  
+                  <div className="pointer-events-none absolute bottom-4 left-4 rounded-xl border border-paper/50 bg-paper/88 px-3 py-2 shadow-sm backdrop-blur-md">
+                    <p className="eyebrow text-teal">Route • Google Maps style</p>
+                    <p className="mt-1 text-xs font-semibold text-ink">
+                      {addedPOIs.length > 0 ? `${addedPOIs.length} stop${addedPOIs.length > 1 ? 's' : ''} added` : 'Tap any POI to explore'}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+              
+              <div className="space-y-5">
+                {poiChatOpen && selectedPOI ? (
+                  <Card className="border-teal/12 bg-teal/5 p-5">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between border-b border-ink/10 pb-3">
+                        <div>
+                          <MiniLabel tone="teal">Route waypoint · AI Assistant</MiniLabel>
+                          <h3 className="mt-1 flex items-center gap-2 font-display text-xl font-semibold tracking-tighter">
+                            <span>{selectedPOI.icon}</span>
+                            {selectedPOI.name}
+                          </h3>
+                        </div>
+                        <button type="button" className="icon-button" onClick={() => { setPoiChatOpen(false); setSelectedPOI(null); }}>
+                          <X size={16} />
+                        </button>
+                      </div>
+                      
+                      <div className="flex items-center justify-between border-b border-ink/8 pb-3">
+                        <span className="flex items-center gap-1.5 text-xs font-bold text-ink">
+                          <Star size={14} fill="currentColor" className="text-saffron" /> 
+                          {selectedPOI.rating} · {selectedPOI.detourTime} detour
+                        </span>
+                        <span className="text-xs font-semibold text-moss">
+                          {selectedPOI.hours || 'Open today'}
+                        </span>
+                      </div>
+                      
+                      <div className="max-h-56 overflow-y-auto space-y-3 pr-1">
+                        {chatMessages.map((message) => (
+                          <div key={message.id} className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}>
+                            {message.role === "assistant" && (
+                              <div className="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal text-white">
+                                <Bot size={15} />
+                              </div>
+                            )}
+                            <div className={cn(
+                              "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-5",
+                              message.role === "user" 
+                                ? "bg-teal text-white" 
+                                : "bg-teal/8 text-ink"
+                            )}>
+                              {message.text}
+                            </div>
+                          </div>
+                        ))}
+                        {chatTyping && (
+                          <div className="flex justify-start">
+                            <div className="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal text-white">
+                              <Bot size={15} />
+                            </div>
+                            <div className="flex items-center gap-1 rounded-2xl bg-teal/8 px-4 py-3">
+                              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal [animation-delay:-0.2s]" />
+                              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal [animation-delay:-0.1s]" />
+                              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="border-t border-ink/10 pt-4">
+                        <div className="field-shell mb-3">
+  <input 
+    onKeyDown={(e) => {
+      if (e.key === "Enter") {
+        const target = e.target as HTMLInputElement;
+        const msg = target.value;
+        if (!msg.trim()) return;
+        
+        const userMessage: ChatMessage = {
+          id: `user-${Date.now()}`,
+          role: "user",
+          text: msg
+        };
+        const updatedMessages = [...chatMessages, userMessage];
+        setChatMessages(updatedMessages);
+        setChatTyping(true);
+        setTimeout(() => {
+          const response = `I'd be happy to help with ${selectedPOI.name}! ${selectedPOI.description} The detour takes ${selectedPOI.detourTime} and costs ₹${selectedPOI.detourCost}. Would you like to add it to your route?`;
+          const assistantMessage: ChatMessage = {
+            id: `assistant-${Date.now()}`,
+            role: "assistant",
+            text: response
+          };
+          setChatMessages([...updatedMessages, assistantMessage]);
+          setChatTyping(false);
+        }, 800 + Math.random() * 600);
+        target.value = "";
+      }
+    }}
+    placeholder={`Ask about ${selectedPOI.name}...`}
+    aria-label="Chat message"
+    disabled={chatTyping}
+    className="flex-1 bg-transparent outline-none"
+  />
+  <button 
+    type="button" 
+    className="icon-button h-8 w-8 shrink-0"
+    disabled={chatTyping}
+    aria-label="Send message"
+  >
+    <Send size={14} className="text-teal" />
+  </button>
+</div>
+                        <Button 
+                          onClick={() => {
+                            if (addedPOIs.some(p => p.id === selectedPOI.id)) return;
+                            setAddedPOIs([...addedPOIs, selectedPOI]);
+                            setPoiChatOpen(false);
+                            setSelectedPOI(null);
+                            toast.success(`${selectedPOI.name} added to route! +₹${selectedPOI.detourCost}`);
+                          }} 
+                          className={cn(
+                            "h-11 w-full rounded-xl font-bold",
+                            addedPOIs.some(p => p.id === selectedPOI.id)
+                              ? "bg-moss text-white hover:bg-moss" 
+                              : "bg-teal text-white hover:bg-teal-dark"
+                          )}
+                          disabled={addedPOIs.some(p => p.id === selectedPOI.id)}
+                        >
+                          {addedPOIs.some(p => p.id === selectedPOI.id) ? (
+                            <><Check size={16} className="mr-2" /> Added to route</>
+                          ) : (
+                            <><Plus size={16} className="mr-2" /> Add to route · ₹{selectedPOI.detourCost}</>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ) : (
+                  <Card className="border-teal/12 bg-teal/5 p-5">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal text-white">
+                        <Bot size={17} />
+                      </div>
+                      <div>
+                        <MiniLabel tone="teal">Contextual assistant</MiniLabel>
+                        <p className="mt-2 text-sm font-semibold leading-5 text-ink">
+                          {addedPOIs.length > 0 
+                            ? `You've added ${addedPOIs.length} stop${addedPOIs.length > 1 ? 's' : ''}. Want to explore more along the way?` 
+                            : "Click any POI on the map to learn more about it. I'll help you decide!"}
+                        </p>
+                        {addedPOIs.length === 0 && (
+                          <button 
+                            type="button" 
+                            onClick={() => toast.info("Tap a POI marker on the map to start exploring!")} 
+                            className="mt-4 flex items-center gap-1.5 text-xs font-bold text-teal"
+                          >
+                            Explore nearby stops <ArrowRight size={13} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                )}
+                
+                <Card className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <MiniLabel>Daily timeline</MiniLabel>
+                      <p className="mt-2 text-sm font-bold text-ink">Friday · 12 February</p>
+                    </div>
+                    <button type="button" onClick={() => toast.info("Timeline options")} className="icon-button">
+                      <MoreHorizontal size={17} />
+                    </button>
+                  </div>
+                  
+                  <div className="mt-6 space-y-0">
+                    <div className="timeline-row">
+                      <div className="timeline-icon bg-teal/10 text-teal">
+                        <HomeIcon size={15} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="truncate text-xs font-bold text-ink">Home pickup</p>
+                          <span className="text-[10px] font-bold text-ink-muted">07:30</span>
+                        </div>
+                        <p className="mt-1 truncate text-[11px] text-ink-muted">Driver · Rajesh K.</p>
+                      </div>
+                      <div className="timeline-connector" />
+                    </div>
+                    
+                    {addedPOIs.map((poi, index) => (
+                      <div key={poi.id} className="timeline-row">
+                        <div className="timeline-icon bg-saffron/12 text-saffron">
+                          <span className="text-sm">{poi.icon}</span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="truncate text-xs font-bold text-ink">{poi.name}</p>
+                            <span className="text-[10px] font-bold text-ink-muted">
+                              {`${9 + index * 2}:${index === 0 ? '40' : '20'}`}
+                            </span>
+                          </div>
+                          <p className="mt-1 truncate text-[11px] text-ink-muted">
+                            {poi.detourTime} · ₹{poi.detourCost}
+                          </p>
+                        </div>
+                        {index < addedPOIs.length - 1 && <div className="timeline-connector" />}
+                      </div>
+                    ))}
+                    
+                    <div className="timeline-row">
+                      <div className="timeline-icon bg-saffron/12 text-saffron">
+                        <Flag size={15} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="truncate text-xs font-bold text-ink">{routePlan.destination}</p>
+                          <span className="text-[10px] font-bold text-ink-muted">17:30</span>
+                        </div>
+                        <p className="mt-1 truncate text-[11px] text-ink-muted">Arrival at destination</p>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            </div>
+            
+            <PriceBar 
+              total={`₹${tripTotal.toLocaleString("en-IN")}`} 
+              delta={addedPOIs.length > 0 ? `+₹${addedPOIs.reduce((sum, p) => sum + p.detourCost, 0)} · ${addedPOIs.length} stop${addedPOIs.length > 1 ? 's' : ''} added` : "Route base price"} 
+            />
+            
+            <div className="flex justify-end">
+              <Button 
+                onClick={() => setStep(2)} 
+                className="group h-11 rounded-xl bg-ink px-5 font-bold text-paper hover:bg-ink/90"
+              >
+                Keep shaping the trip <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
+              </Button>
+            </div>
+          </div>
+        );
+      case 2:
+        return <EnhancedCustomization upgraded={upgraded} setUpgraded={setUpgraded} addedStop={addedStop} tripTotal={tripTotal} onNext={() => setStep(3)} />;
+      case 3:
+        return <Checkout 
+          addedStop={addedStop} 
+          upgraded={upgraded} 
+          onNext={() => setStep(4)}
+          vendors={vendors}
+          onConfirmVendor={handleConfirmVendor}
+          onConfirmAll={handleConfirmAll}
+          isConfirmingAll={isConfirmingAll}
+          arrivalTime="17:30"
+          selectedPaymentMethod={selectedPaymentMethod}
+          onSelectPaymentMethod={setSelectedPaymentMethod}
+          onPay={handlePay}
+          isProcessingPayment={isProcessingPayment}
+          paymentConfirmation={paymentConfirmation}
+          showPaymentConfirmation={showPaymentConfirmation}
+          setVendors={setVendors}
+        />;
+      case 4:
+        return <DigitalPass 
+          destination={destination} 
+          onAdapt={openAdapt} 
+          vendorConfirmed={vendorConfirmed}
+          vendors={vendors}
+          onConfirmVendor={handleConfirmVendor}
+        />;
+      case 5:
+        return <RippleOptions 
+          onResolve={handleResolve} 
+          resolved={resolved} 
+          isResolving={isResolving}
+          vendors={vendors}
+        />;
+      case 6:
+        return <Complete 
+          resolved={resolved} 
+          resolutionKey={resolutionKey}
+          vendors={vendors}
+          destination={destination}
+          routePlan={routePlan}
+        />;
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-paper text-ink">
@@ -4362,56 +4238,7 @@ export default function Home() {
           {mode === "traveler" && <ProgressRail step={step} />}
           
           {mode === "traveler" ? (
-            <TravelerView
-              step={step}
-              setStep={setStep}
-              destination={destination}
-              setDestination={setDestination}
-              routePlan={routePlan}
-              budget={budget}
-              setBudget={setBudget}
-              dates={dates}
-              setDates={setDates}
-              durationDays={durationDays}
-              setDurationDays={setDurationDays}
-              pickupMode={pickupMode}
-              setPickupMode={setPickupMode}
-              pickupAddress={pickupAddress}
-              setPickupAddress={setPickupAddress}
-              styles={styles}
-              setStyles={setStyles}
-              addedStop={addedStop}
-              onAddStop={addLocalStop}
-              tripTotal={tripTotal}
-              upgraded={upgraded}
-              setUpgraded={setUpgraded}
-              vendorConfirmed={vendorConfirmed}
-              onAdapt={openAdapt}
-              onResolve={handleResolve}
-              resolved={resolved}
-              resolutionKey={resolutionKey}
-              adults={adults}
-              setAdults={setAdults}
-              childrenCount={childrenCount}
-              setChildrenCount={setChildrenCount}
-              infants={infants}
-              setInfants={setInfants}
-              selectedPOI={selectedPOI}
-              setSelectedPOI={setSelectedPOI}
-              poiChatOpen={poiChatOpen}
-              setPoiChatOpen={setPoiChatOpen}
-              addedPOIs={addedPOIs}
-              setAddedPOIs={setAddedPOIs}
-              chatMessages={chatMessages}
-              setChatMessages={setChatMessages}
-              chatTyping={chatTyping}
-              setChatTyping={setChatTyping}
-              vendors={vendors}
-              onConfirmVendor={handleConfirmVendor}
-              onConfirmAll={handleConfirmAll}
-              isConfirmingAll={isConfirmingAll}
-              isResolving={isResolving}
-            />
+            renderTravelerView()
           ) : mode === "operator" ? (
             <OperatorDashboard 
               resolved={resolved} 
