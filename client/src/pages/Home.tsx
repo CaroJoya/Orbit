@@ -30,6 +30,7 @@ import {
   CloudRain,
   Compass,
   Copy,
+  Download,
   CreditCard,
   FileCheck2,
   Flag,
@@ -2737,7 +2738,15 @@ function RippleOptions({
   );
 }
 
-function Complete({ resolved, resolutionKey }: { resolved: boolean; resolutionKey: string }) {
+// Replace the Complete function in Home.tsx with this enhanced version
+
+function Complete({ resolved, resolutionKey, vendors, destination, routePlan }: { 
+  resolved: boolean; 
+  resolutionKey: string;
+  vendors: VendorConfirmation[];
+  destination: string;
+  routePlan: RoutePlan;
+}) {
   const resolutionMessages = {
     A: {
       title: "Ripple Engine preserved the day",
@@ -2754,98 +2763,208 @@ function Complete({ resolved, resolutionKey }: { resolved: boolean; resolutionKe
   };
   
   const msg = resolutionMessages[resolutionKey as keyof typeof resolutionMessages] || resolutionMessages.A;
+  const bookingRef = `TRP-${String(8000 + Math.floor(Math.random() * 1000))}`;
+  const travelDate = format(new Date(), "dd MMM yyyy");
+  const allConfirmed = vendors.every(v => v.status === 'confirmed');
+  const confirmedCount = vendors.filter(v => v.status === 'confirmed').length;
   
   return (
     <div className="space-y-8 animate-fade-up">
-      <div className="section-heading">
-        <MiniLabel tone="green">07 / Complete</MiniLabel>
-        <h1>A trip that kept its <em>shape.</em></h1>
-        <p>Not because nothing changed—because the system knew what to do when it did.</p>
+      {/* Confirmation Header */}
+      <div className="flex flex-col items-center text-center">
+        <div className="inline-flex items-center gap-2 rounded-full bg-moss/10 px-4 py-2 text-xs font-bold text-moss">
+          <CheckCircle2 size={16} /> Trip Confirmed
+        </div>
+        <h1 className="mt-4 font-display text-4xl font-semibold tracking-tighter">
+          Your journey is <em className="text-teal">ready.</em>
+        </h1>
+        <p className="mt-2 text-sm text-ink-muted">
+          Booking #{bookingRef} · Confirmed on {travelDate}
+        </p>
       </div>
-      
-      <div className="grid gap-6 xl:grid-cols-[1fr_0.8fr]">
-        <Card className="overflow-hidden p-0">
-          <div className="relative h-52">
-            <img src={imageReference} alt="Jaipur road-trip landscape" className="h-full w-full object-cover" />
-            <div className="absolute inset-0 bg-linear-to-t from-ink/80 to-transparent" />
-            <div className="absolute bottom-5 left-6 text-paper">
-              <p className="eyebrow text-paper/60">Trip summary · Aanya Sharma</p>
-              <h2 className="mt-2 font-display text-3xl font-semibold tracking-tighter">Jaipur circuit</h2>
+
+      {/* Main Ticket Card */}
+      <div className="relative overflow-hidden rounded-3xl border-2 border-teal/20 bg-white shadow-[0_18px_50px_rgba(23,34,35,0.12)]">
+        {/* Ticket perforation line */}
+        <div className="absolute left-0 right-0 top-1/2 z-0 flex -translate-y-1/2 justify-between px-2 opacity-20">
+          <div className="flex w-full justify-between">
+            {Array.from({ length: 30 }).map((_, i) => (
+              <span key={i} className="h-3 w-0.5 rounded-full bg-ink/40" />
+            ))}
+          </div>
+        </div>
+        
+        <div className="relative z-10 grid grid-cols-1 md:grid-cols-[1.4fr_1fr]">
+          {/* Left side - Trip details */}
+          <div className="border-b border-ink/10 p-6 md:border-b-0 md:border-r md:p-8">
+            {/* Header with Logo */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Logo variant="tiny" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-ink/40">Orbit</span>
+              </div>
+              <Badge className="bg-teal/10 text-teal hover:bg-teal/20">
+                <Check size={12} className="mr-1" /> Confirmed
+              </Badge>
             </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4 p-6 sm:grid-cols-4">
-            <div><p className="eyebrow">Total</p><p className="mt-2 text-xl font-bold">₹49,240</p></div>
-            <div><p className="eyebrow">Waypoints</p><p className="mt-2 text-xl font-bold">9</p></div>
-            <div><p className="eyebrow">Buffer</p><p className="mt-2 text-xl font-bold text-moss">30 min</p></div>
-            <div><p className="eyebrow">Status</p><p className="mt-2 text-xl font-bold text-moss">Held</p></div>
-          </div>
-          
-          <div className="border-t border-ink/8 px-6 py-5">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-moss/10 text-moss">
-                <CheckCircle2 size={17} />
+
+            {/* Trip name */}
+            <h2 className="mt-4 font-display text-2xl font-semibold tracking-tighter">
+              {destination}
+            </h2>
+            <p className="text-xs text-ink-muted">{routePlan.distance} · {routePlan.driveTime}</p>
+
+            {/* Traveler info */}
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">Traveler</p>
+                <p className="mt-1 text-sm font-bold">Aanya Sharma</p>
               </div>
               <div>
-                <p className="text-sm font-bold text-ink">{msg.title}</p>
-                <p className="mt-1 text-xs text-ink-muted">{msg.detail}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">Dates</p>
+                <p className="mt-1 text-sm font-bold">12–14 Feb 2026</p>
               </div>
+            </div>
+
+            {/* Vendor status */}
+            <div className="mt-6 rounded-xl bg-paper/60 p-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">Vendor Confirmations</p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {vendors.map((vendor) => {
+                  const Icon = vendor.icon;
+                  const isConfirmed = vendor.status === 'confirmed';
+                  return (
+                    <div key={vendor.id} className="flex items-center gap-1.5 text-xs">
+                      <Icon size={12} className={isConfirmed ? "text-moss" : "text-ink-muted"} />
+                      <span className="flex-1 truncate text-ink">{vendor.name}</span>
+                      <span className={cn("text-[8px] font-bold", isConfirmed ? "text-moss" : "text-amber")}>
+                        {isConfirmed ? "✓" : "⏳"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Price */}
+            <div className="mt-4 flex items-end justify-between border-t border-ink/8 pt-4">
+              <span className="text-xs text-ink-muted">Total paid</span>
+              <span className="font-display text-2xl font-bold tracking-tighter">₹49,240</span>
+            </div>
+          </div>
+
+          {/* Right side - QR & Quick actions */}
+          <div className="flex flex-col items-center justify-center gap-4 p-6 md:p-8">
+            {/* QR Code */}
+            <div className="flex h-32 w-32 items-center justify-center rounded-xl bg-white shadow-sm border border-ink/8">
+              <QrCode size={64} className="text-ink/60" />
+            </div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">Scan for trip details</p>
+            
+            {/* Quick action buttons */}
+            <div className="mt-2 flex w-full flex-col gap-2 sm:flex-row">
+              <Button 
+                onClick={() => toast.success("Ticket saved to device")}
+                className="flex-1 h-10 rounded-xl bg-teal text-xs font-bold text-white hover:bg-teal-dark"
+              >
+                <Download size={14} className="mr-2" /> Save Ticket
+              </Button>
+              <Button 
+                onClick={() => { navigator.clipboard?.writeText(`Booking #${bookingRef}`); toast.success("Booking reference copied"); }}
+                variant="outline"
+                className="flex-1 h-10 rounded-xl border-ink/12 text-xs font-bold text-ink hover:bg-paper-dark"
+              >
+                <Copy size={14} className="mr-2" /> Share
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom strip - perforated edge */}
+        <div className="relative z-10 border-t border-dashed border-ink/15 px-6 py-3 text-center md:px-8">
+          <p className="text-[10px] text-ink-muted/60">
+            <LockKeyhole size={12} className="inline mr-1.5" />
+            Privacy protected · Vendor contacts are masked
+          </p>
+        </div>
+      </div>
+
+      {/* Day-by-day itinerary */}
+      <Card className="overflow-hidden p-0">
+        <div className="border-b border-ink/8 px-6 py-4">
+          <h3 className="font-display text-lg font-semibold tracking-tighter">Your Itinerary</h3>
+        </div>
+        <div className="divide-y divide-ink/8">
+          {[
+            { day: "Day 1 · 12 Feb", activities: ["Home pickup · 07:30", "Drive to Jaipur", "Hotel check-in · 17:30"] },
+            { day: "Day 2 · 13 Feb", activities: ["Amber Fort tour", "Local food experience", "Evening at leisure"] },
+            { day: "Day 3 · 14 Feb", activities: ["Morning yoga", "Departure"] },
+          ].map((day, index) => (
+            <div key={index} className="px-6 py-4">
+              <p className="text-xs font-bold text-teal">{day.day}</p>
+              <ul className="mt-2 space-y-1.5">
+                {day.activities.map((activity, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-ink/70">
+                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-teal/30 shrink-0" />
+                    {activity}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Ripple resolution (if resolved) */}
+      {resolved && (
+        <Card className="border-amber/20 bg-amber/5 p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber/20 text-amber-dark">
+              <Zap size={17} />
+            </div>
+            <div>
+              <MiniLabel tone="amber">Ripple Engine</MiniLabel>
+              <p className="mt-1 text-sm font-bold text-ink">{msg.title}</p>
+              <p className="mt-1 text-xs text-ink-muted">{msg.detail}</p>
             </div>
           </div>
         </Card>
-        
-        <div className="space-y-5">
-          <Card className="p-5">
-            <div className="flex items-center justify-between">
-              <MiniLabel>Memories log</MiniLabel>
-              <button 
-                type="button" 
-                onClick={() => { 
-                  navigator.clipboard?.writeText("Jaipur circuit · Aanya Sharma"); 
-                  toast.success("Trip memories link copied"); 
-                }} 
-                className="icon-button h-8 w-8" 
-                aria-label="Copy trip memories link"
-              >
-                <Copy size={15} />
-              </button>
-            </div>
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="memory-tile">
-                <span>01</span>
-                <strong>Golden hour<br />at Amber Fort</strong>
-              </div>
-              <div className="memory-tile memory-tile-teal">
-                <span>02</span>
-                <strong>Tea, rain,<br />and a good detour</strong>
-              </div>
-            </div>
-          </Card>
-          
-          <Card className="p-5">
-            <div className="flex items-center justify-between">
-              <MiniLabel>Review loop</MiniLabel>
-              <Star size={15} className="text-saffron" />
-            </div>
-            <p className="mt-3 text-sm leading-6 text-ink/75">Rate both sides of the route. Reliability scores update for the next traveler.</p>
-            <div className="mt-4 flex items-center justify-between rounded-xl bg-paper-dark px-3 py-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-saffron/16 text-saffron">
-                  <Store size={15} />
-                </div>
-                <span className="text-xs font-bold">Local stop</span>
-              </div>
-              <span className="text-xs font-bold text-moss">4.8 → 4.9</span>
-            </div>
-            <Button 
-              onClick={() => toast.success("Review loop opened · traveler and partner views paired")} 
-              variant="outline" 
-              className="mt-4 h-10 w-full rounded-xl border-ink/12 bg-paper text-xs font-bold text-ink hover:bg-paper-dark"
-            >
-              Open dual-sided review <ArrowRight size={14} className="ml-2" />
-            </Button>
-          </Card>
+      )}
+
+      {/* Emergency contacts */}
+      <Card className="border-teal/15 bg-teal/5 p-5">
+        <div className="flex items-start gap-3">
+          <Phone size={18} className="text-teal shrink-0" />
+          <div>
+            <MiniLabel tone="teal">24/7 Support</MiniLabel>
+            <p className="mt-1 text-sm font-bold text-ink">+91 98765 43210</p>
+            <p className="mt-1 text-xs text-ink-muted">Emergency assistance · Route support · Vendor coordination</p>
+          </div>
         </div>
+      </Card>
+
+      {/* Action buttons */}
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Button 
+          onClick={() => toast.success("Trip details emailed")}
+          className="flex-1 h-12 rounded-xl bg-teal font-bold text-white hover:bg-teal-dark"
+        >
+          <Send size={16} className="mr-2" /> Email Trip Details
+        </Button>
+        <Button 
+          onClick={() => toast.success("Feedback form opened")}
+          variant="outline"
+          className="flex-1 h-12 rounded-xl border-ink/12 font-bold text-ink hover:bg-paper-dark"
+        >
+          <Star size={16} className="mr-2" /> Leave Review
+        </Button>
+        <Button 
+          onClick={() => window.location.reload()}
+          variant="ghost"
+          className="h-12 rounded-xl font-bold text-ink-muted hover:bg-paper-dark"
+        >
+          <RefreshCw size={16} className="mr-2" /> Start New Trip
+        </Button>
       </div>
     </div>
   );
@@ -3030,8 +3149,14 @@ function TravelerView({
         vendors={vendors}
       />;
     case 6:
-      return <Complete resolved={resolved} resolutionKey={resolutionKey} />;
-    default:
+    return <Complete 
+    resolved={resolved} 
+    resolutionKey={resolutionKey}
+    vendors={vendors}
+    destination={destination}
+    routePlan={routePlan}
+  />;
+  default:
       return null;
   }
 }
