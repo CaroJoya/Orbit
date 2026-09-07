@@ -900,10 +900,10 @@ function getPOIAIResponse(poi: POI, userMessage: string): string {
 }
 
 // =============================================================================
-// POI Chat Drawer Component
+// POI Chat Panel Component - Replaces the drawer with a panel in the right column
 // =============================================================================
 
-function POIChatDrawer({ 
+function POIChatPanel({ 
   poi, 
   onClose, 
   onAdd, 
@@ -930,9 +930,9 @@ function POIChatDrawer({
   };
 
   return (
-    <div className="drawer absolute inset-y-0 right-0 z-50 flex w-full max-w-95 flex-col bg-paper shadow-[-14px_0_36px_rgba(23,34,35,0.16)] sm:w-95 animate-slide-in">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-ink/10 px-5 py-4">
+      <div className="flex items-center justify-between border-b border-ink/10 pb-3">
         <div>
           <MiniLabel tone="teal">Route waypoint · AI Assistant</MiniLabel>
           <h3 className="mt-1 flex items-center gap-2 font-display text-xl font-semibold tracking-tighter">
@@ -945,53 +945,52 @@ function POIChatDrawer({
         </button>
       </div>
       
+      {/* POI Info */}
+      <div className="flex items-center justify-between border-b border-ink/8 pb-3">
+        <span className="flex items-center gap-1.5 text-xs font-bold text-ink">
+          <Star size={14} fill="currentColor" className="text-saffron" /> 
+          {poi.rating} · {poi.detourTime} detour
+        </span>
+        <span className="text-xs font-semibold text-moss">
+          {poi.hours || 'Open today'}
+        </span>
+      </div>
+      
       {/* Chat messages */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="flex items-center justify-between border-b border-ink/8 px-5 py-3">
-          <span className="flex items-center gap-1.5 text-xs font-bold text-ink">
-            <Star size={14} fill="currentColor" className="text-saffron" /> 
-            {poi.rating} · {poi.detourTime} detour
-          </span>
-          <span className="text-xs font-semibold text-moss">
-            {poi.hours || 'Open today'}
-          </span>
-        </div>
-        
-        <div className="space-y-3 p-5">
-          {messages.map((message) => (
-            <div key={message.id} className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}>
-              {message.role === "assistant" && (
-                <div className="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal text-white">
-                  <Bot size={15} />
-                </div>
-              )}
-              <div className={cn(
-                "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-5",
-                message.role === "user" 
-                  ? "bg-teal text-white" 
-                  : "bg-teal/8 text-ink"
-              )}>
-                {message.text}
-              </div>
-            </div>
-          ))}
-          {typing && (
-            <div className="flex justify-start">
+      <div className="max-h-56 overflow-y-auto space-y-3 pr-1">
+        {messages.map((message) => (
+          <div key={message.id} className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}>
+            {message.role === "assistant" && (
               <div className="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal text-white">
                 <Bot size={15} />
               </div>
-              <div className="flex items-center gap-1 rounded-2xl bg-teal/8 px-4 py-3">
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal [animation-delay:-0.2s]" />
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal [animation-delay:-0.1s]" />
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal" />
-              </div>
+            )}
+            <div className={cn(
+              "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-5",
+              message.role === "user" 
+                ? "bg-teal text-white" 
+                : "bg-teal/8 text-ink"
+            )}>
+              {message.text}
             </div>
-          )}
-        </div>
+          </div>
+        ))}
+        {typing && (
+          <div className="flex justify-start">
+            <div className="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal text-white">
+              <Bot size={15} />
+            </div>
+            <div className="flex items-center gap-1 rounded-2xl bg-teal/8 px-4 py-3">
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal [animation-delay:-0.2s]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal [animation-delay:-0.1s]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal" />
+            </div>
+          </div>
+        )}
       </div>
       
-      {/* Footer */}
-      <div className="border-t border-ink/10 p-4">
+      {/* Input and Add button */}
+      <div className="border-t border-ink/10 pt-4">
         <div className="field-shell mb-3">
           <input 
             value={input} 
@@ -1033,7 +1032,7 @@ function POIChatDrawer({
 }
 
 // =============================================================================
-// RouteRadar Component - Updated with POI support and Test Button
+// RouteRadar Component - Updated with POI support in the contextual assistant
 // =============================================================================
 
 function RouteRadar({ 
@@ -1129,31 +1128,6 @@ function RouteRadar({
 
   const allAddedCost = addedPOIs.reduce((sum, p) => sum + p.detourCost, 0);
 
-  // Test POI click handler
-  const handleTestPOIClick = () => {
-    console.log("Test chat button clicked");
-    const testPOI: POI = {
-      id: "test-1",
-      name: "Test POI",
-      type: "food",
-      position: { lat: 26.9124, lng: 75.7873 },
-      description: "This is a test POI",
-      detourTime: "10 min",
-      detourCost: 100,
-      rating: "4.5",
-      icon: "🍽️",
-      hours: "10:00 AM - 8:00 PM"
-    };
-    setSelectedPOI(testPOI);
-    setPoiChatOpen(true);
-    const welcomeMessage: ChatMessage = {
-      id: `assistant-${Date.now()}`,
-      role: "assistant",
-      text: "👋 This is a test chat! The POI chat works!"
-    };
-    setChatMessages([welcomeMessage]);
-  };
-
   return (
     <div className="space-y-8 animate-fade-up">
       <div className="section-heading flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
@@ -1216,19 +1190,14 @@ function RouteRadar({
                 {addedPOIs.length > 0 ? `${addedPOIs.length} stop${addedPOIs.length > 1 ? 's' : ''} added` : 'Tap any POI to explore'}
               </p>
             </div>
-            
-            {/* Test Button - Click this to verify chat works */}
-            <button 
-              type="button"
-              onClick={handleTestPOIClick}
-              className="absolute top-4 right-16 z-50 bg-teal text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-teal-dark transition-colors shadow-lg"
-            >
-              🧪 Test Chat
-            </button>
-            
-            {/* POI Chat Drawer */}
-            {poiChatOpen && selectedPOI && (
-              <POIChatDrawer
+          </div>
+        </Card>
+        
+        <div className="space-y-5">
+          {/* Contextual Assistant - Now shows POI chat when open, otherwise default state */}
+          {poiChatOpen && selectedPOI ? (
+            <Card className="border-teal/12 bg-teal/5 p-5">
+              <POIChatPanel
                 poi={selectedPOI}
                 onClose={() => {
                   setPoiChatOpen(false);
@@ -1240,11 +1209,35 @@ function RouteRadar({
                 onSendMessage={handleSendPOIMessage}
                 typing={chatTyping}
               />
-            )}
-          </div>
-        </Card>
-        
-        <div className="space-y-5">
+            </Card>
+          ) : (
+            <Card className="border-teal/12 bg-teal/5 p-5">
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal text-white">
+                  <Bot size={17} />
+                </div>
+                <div>
+                  <MiniLabel tone="teal">Contextual assistant</MiniLabel>
+                  <p className="mt-2 text-sm font-semibold leading-5 text-ink">
+                    {addedPOIs.length > 0 
+                      ? `You've added ${addedPOIs.length} stop${addedPOIs.length > 1 ? 's' : ''}. Want to explore more along the way?` 
+                      : "Click any POI on the map to learn more about it. I'll help you decide!"}
+                  </p>
+                  {addedPOIs.length === 0 && (
+                    <button 
+                      type="button" 
+                      onClick={() => toast.info("Tap a POI marker on the map to start exploring!")} 
+                      className="mt-4 flex items-center gap-1.5 text-xs font-bold text-teal"
+                    >
+                      Explore nearby stops <ArrowRight size={13} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </Card>
+          )}
+          
+          {/* Daily timeline - stays below */}
           <Card className="p-5">
             <div className="flex items-center justify-between">
               <div>
@@ -1305,31 +1298,6 @@ function RouteRadar({
                   </div>
                   <p className="mt-1 truncate text-[11px] text-ink-muted">Arrival at destination</p>
                 </div>
-              </div>
-            </div>
-          </Card>
-          
-          <Card className="border-teal/12 bg-teal/5 p-5">
-            <div className="flex items-start gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal text-white">
-                <Bot size={17} />
-              </div>
-              <div>
-                <MiniLabel tone="teal">Contextual assistant</MiniLabel>
-                <p className="mt-2 text-sm font-semibold leading-5 text-ink">
-                  {addedPOIs.length > 0 
-                    ? `You've added ${addedPOIs.length} stop${addedPOIs.length > 1 ? 's' : ''}. Want to explore more along the way?` 
-                    : "Click any POI on the map to learn more about it. I'll help you decide!"}
-                </p>
-                {addedPOIs.length === 0 && (
-                  <button 
-                    type="button" 
-                    onClick={() => toast.info("Tap a POI marker on the map to start exploring!")} 
-                    className="mt-4 flex items-center gap-1.5 text-xs font-bold text-teal"
-                  >
-                    Explore nearby stops <ArrowRight size={13} />
-                  </button>
-                )}
               </div>
             </div>
           </Card>
