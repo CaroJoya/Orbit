@@ -41,6 +41,7 @@ import { useLocation } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 
 const imageReference = "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=85";
@@ -64,15 +65,8 @@ function StatusChip({ children, tone = "neutral" }: { children: ReactNode; tone?
 }
 
 function Brand({ onNavigate, inverse = false }: { onNavigate: (path: string) => void; inverse?: boolean }) {
-  return <button type="button" onClick={() => onNavigate("/")} className="flex items-center gap-3 text-left" aria-label="Open Orbit home">
-    <span className="brand-mark">
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5">
-        <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="2"/>
-        <path d="M12 2C12 2 8 8 8 12C8 16 12 22 12 22C12 22 16 16 16 12C16 8 12 2 12 2Z" fill="white" opacity="0.3"/>
-        <circle cx="12" cy="12" r="3" fill="white"/>
-      </svg>
-    </span>
-    <span className={cn("font-display text-[22px] font-semibold tracking-tighter", inverse ? "text-paper" : "text-ink")}>Orbit</span>
+  return <button type="button" onClick={() => onNavigate("/")} className="flex items-center text-left" aria-label="Open Orbit home">
+    <Logo inverse={inverse} />
   </button>;
 }
 

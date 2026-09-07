@@ -352,3 +352,121 @@ button:focus-visible, input:focus-visible { outline: 3px solid oklch(0.58 0.11 1
   width: 12px;
   height: 12px;
 }
+
+/*
+ * Atlas Editorial design system:
+ * Warm parchment surfaces, ink-navy structure, monsoon teal connectivity,
+ * saffron discovery, and moss confirmation. Layout favors annotated route
+ * compositions over generic centered dashboards. Motion is tactile and restrained.
+ */
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-teal: oklch(0.58 0.11 177);
+  --color-teal-dark: oklch(0.48 0.1 177);
+  --color-teal-light: oklch(0.79 0.1 177);
+  --color-paper: oklch(0.97 0.012 87);
+  --color-paper-dark: oklch(0.935 0.016 87);
+  --color-ink: oklch(0.25 0.028 185);
+  --color-ink-muted: oklch(0.5 0.026 185);
+  --color-saffron: oklch(0.74 0.14 74);
+  --color-saffron-light: oklch(0.86 0.12 82);
+  --color-amber: oklch(0.82 0.14 83);
+  --color-amber-dark: oklch(0.58 0.12 75);
+  --color-moss: oklch(0.56 0.09 145);
+  --color-coral: oklch(0.65 0.14 38);
+  --font-display: "Fraunces", Georgia, serif;
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  --primary: oklch(0.58 0.11 177);
+  --primary-foreground: oklch(0.99 0 0);
+  --sidebar-primary: oklch(0.58 0.11 177);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --chart-1: oklch(0.58 0.11 177);
+  --chart-2: oklch(0.74 0.14 74);
+  --chart-3: oklch(0.56 0.09 145);
+  --chart-4: oklch(0.65 0.14 38);
+  --chart-5: oklch(0.25 0.028 185);
+  --radius: 0.85rem;
+  --background: oklch(0.97 0.012 87);
+  --foreground: oklch(0.25 0.028 185);
+  --card: oklch(0.985 0.008 87);
+  --card-foreground: oklch(0.25 0.028 185);
+  --popover: oklch(0.985 0.008 87);
+  --popover-foreground: oklch(0.25 0.028 185);
+  --secondary: oklch(0.935 0.016 87);
+  --secondary-foreground: oklch(0.3 0.028 185);
+  --muted: oklch(0.935 0.016 87);
+  --muted-foreground: oklch(0.5 0.026 185);
+  --accent: oklch(0.9 0.045 177);
+  --accent-foreground: oklch(0.25 0.028 185);
+  --destructive: oklch(0.65 0.14 38);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.25 0.028 185 / 12%);
+  --input: oklch(0.25 0.028 185 / 14%);
+  --ring: oklch(0.58 0.11 177);
+  --sidebar: oklch(0.25 0.028 185);
+  --sidebar-foreground: oklch(0.97 0.012 87);
+  --sidebar-accent: oklch(0.32 0.032 185);
+  --sidebar-accent-foreground: oklch(0.97 0.012 87);
+  --sidebar-border: oklch(0.97 0.012 87 / 13%);
+  --sidebar-ring: oklch(0.58 0.11 177);
+}
+
+* { box-sizing: border-box; }
+html { background: #f5f1e8; scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  min-width: 320px;
+  font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  background: oklch(0.97 0.012 87);
+  color: oklch(0.25 0.028 185);
+}
+
+button, input { font: inherit; }
+button:focus-visible, input:focus-visible { outline: 3px solid oklch(0.58 0.11 177 / 28%); outline-offset: 2px; }
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  button:not(:disabled), [role="button"]:not([aria-disabled="true"]), [type="button"]:not(:disabled), [type="submit"]:not(:disabled), a[href], select:not(:disabled), input[type="checkbox"]:not(:disabled), input[type="radio"]:not(:disabled) { @apply cursor-pointer; }
+}
+
+@layer components {
+  .container { width: 100%; margin-left: auto; margin-right: auto; padding-left: 1rem; padding-right: 1rem; }
+  .flex { min-height: 0; min-width: 0; }
+}
+
+.font-display { font-family: "Fraunces", Georgia, serif; }
+.font-sans { font-family: "Manrope", ui-sans-serif, system-ui, sans-serif; }
+

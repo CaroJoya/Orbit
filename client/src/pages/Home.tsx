@@ -82,6 +82,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { RouteRadarMap, POI } from "@/components/RouteRadarMap";
+import { Logo } from "@/components/Logo";
 import { format } from "date-fns";
 
 type Mode = "traveler" | "operator" | "vendor";
@@ -90,6 +91,35 @@ type TravelerStep = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 const imageReference = "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=85";
 const mapImage = "https://images.unsplash.com/photo-1454496522488-7a8e488e8606?auto=format&fit=crop&w=1600&q=85";
 const stopImage = "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=1200&q=85";
+
+// Destination images mapping
+const destinationImages: Record<string, string> = {
+  goa: "https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=1600&q=85",
+  jaipur: "https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&w=1600&q=85",
+  kerala: "https://images.unsplash.com/photo-1593693411515-c20261bcad6e?auto=format&fit=crop&w=1600&q=85",
+  manali: "https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?auto=format&fit=crop&w=1600&q=85",
+  udaipur: "https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=1600&q=85",
+  varanasi: "https://images.unsplash.com/photo-1561361058-c24cecae35ca?auto=format&fit=crop&w=1600&q=85",
+  delhi: "https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&w=1600&q=85",
+  mumbai: "https://images.unsplash.com/photo-1570168007204-dfb528c6958f?auto=format&fit=crop&w=1600&q=85",
+  chennai: "https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=1600&q=85",
+  bangalore: "https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&w=1600&q=85",
+  pushkar: "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=1600&q=85",
+  jodhpur: "https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=1600&q=85",
+  amritsar: "https://images.unsplash.com/photo-1517154421773-0529f29ea451?auto=format&fit=crop&w=1600&q=85",
+  default: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=85",
+};
+
+function getDestinationImage(destination: string): string {
+  const clean = destination.trim().toLowerCase();
+  // Try exact match
+  if (destinationImages[clean]) return destinationImages[clean];
+  // Try partial match
+  const match = Object.keys(destinationImages).find(
+    (key) => clean.includes(key) || key.includes(clean)
+  );
+  return match ? destinationImages[match] : destinationImages.default;
+}
 
 // Travel Service Options
 const travelServices = [
@@ -260,20 +290,9 @@ function AppHeader({ mode, setMode, onRestart, destination }: { mode: Mode; setM
   return (
     <header className="sticky top-0 z-40 flex h-19 items-center justify-between border-b border-ink/10 bg-paper/90 px-6 backdrop-blur-xl lg:px-9">
       <div className="flex items-center gap-3">
-        <div className="brand-mark brand-mark-small">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5">
-            <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="2"/>
-            <path d="M12 2C12 2 8 8 8 12C8 16 12 22 12 22C12 22 16 16 16 12C16 8 12 2 12 2Z" fill="white" opacity="0.3"/>
-            <circle cx="12" cy="12" r="3" fill="white"/>
-          </svg>
-        </div>
-        <span className="font-display text-xl font-semibold tracking-tighter text-ink">Orbit</span>
+        <Logo className="cursor-pointer" onClick={() => setLocation("/")} />
       </div>
-      <div className="hidden items-center gap-3 lg:flex">
-        <span className="eyebrow text-ink-muted">Live product visualization</span>
-        <span className="h-1 w-1 rounded-full bg-ink-muted/50" />
-        <span className="text-sm font-medium text-ink-muted">{destination} circuit · 03 day story</span>
-      </div>
+      
       <div className="flex items-center gap-3">
         <div className="mode-switch" role="tablist" aria-label="Demo perspective">
           {(["traveler", "operator", "vendor"] as Mode[]).map((item) => (
@@ -296,17 +315,7 @@ function Sidebar({ step, setStep }: { step: TravelerStep; setStep: (step: Travel
   return (
     <aside className="fixed inset-y-0 left-0 z-50 hidden w-63 flex-col bg-ink px-5 py-6 text-paper lg:flex">
       <div className="flex items-center gap-3 px-2">
-        <div className="brand-mark">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5">
-            <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="2"/>
-            <path d="M12 2C12 2 8 8 8 12C8 16 12 22 12 22C12 22 16 16 16 12C16 8 12 2 12 2Z" fill="white" opacity="0.3"/>
-            <circle cx="12" cy="12" r="3" fill="white"/>
-          </svg>
-        </div>
-        <div>
-          <div className="font-display text-[22px] font-semibold tracking-tighter">Orbit</div>
-          <div className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-paper/45">Travel OS</div>
-        </div>
+        <Logo inverse />
       </div>
 
       <div className="mt-14 px-2">
@@ -557,14 +566,14 @@ function SuggestedDestinationsSection({ onDestinationClick }: { onDestinationCli
               onDestinationClick?.(destination.name);
               toast.info(`Exploring ${destination.name}`);
             }}
-            className="group relative overflow-hidden rounded-2xl aspect-[4/3] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_12px_32px_rgba(0,0,0,0.15)] focus-visible:ring-2 focus-visible:ring-teal"
+            className="group relative overflow-hidden rounded-2xl aspect-4/3 transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_12px_32px_rgba(0,0,0,0.15)] focus-visible:ring-2 focus-visible:ring-teal"
           >
             <img 
               src={destination.image} 
               alt={destination.name}
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/30 to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-t from-ink/85 via-ink/30 to-transparent" />
             
             {/* Rating and price badge */}
             <div className="absolute top-3 right-3 flex items-center gap-1.5 rounded-full bg-ink/70 backdrop-blur-sm px-2.5 py-1">
@@ -669,6 +678,9 @@ function IntakeCanvas({
   const basePricePerAdult = 47800;
   const pricePerChild = 25000;
   const pricePerInfant = 10000;
+
+  // Get destination image dynamically
+  const destinationImage = getDestinationImage(destination);
 
   return (
     <div className="space-y-8 animate-fade-up">
@@ -811,7 +823,7 @@ function IntakeCanvas({
           </div>
         </Card>
         <div className="relative min-h-130 overflow-hidden rounded-[28px] xl:mt-8 bg-ink shadow-[0_18px_50px_rgba(23,34,35,0.15)]">
-          <img src={imageReference} alt={`Road toward ${routePlan.origin}`} className="absolute inset-0 h-full w-full object-cover opacity-80" /><div className="absolute inset-0 bg-linear-to-t from-ink via-ink/30 to-transparent" />
+          <img src={destinationImage} alt={`Road toward ${routePlan.origin}`} className="absolute inset-0 h-full w-full object-cover opacity-80" /><div className="absolute inset-0 bg-linear-to-t from-ink via-ink/30 to-transparent" />
           <div className="relative flex h-full flex-col justify-between p-6 text-paper sm:p-8"><div className="flex items-center justify-between"><span className="rounded-full border border-paper/18 bg-ink/20 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] backdrop-blur-sm">Route dossier · {routePlan.destination}</span><span className="flex items-center gap-2 rounded-full bg-paper/12 px-3 py-2 text-xs font-semibold backdrop-blur-sm"><span className="h-2 w-2 rounded-full bg-teal-light" /> Season-aware</span></div><div><div className="mb-5 flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-saffron text-ink"><Compass size={19} /></div><span className="text-sm font-medium text-paper/75">Your route will consider weather, buffers, and local character.</span></div><h2 className="max-w-md font-display text-4xl font-semibold leading-[0.98] tracking-tighter sm:text-5xl">A slower road to the <em className="text-saffron-light">good stuff.</em></h2><div className="mt-8 grid max-w-md grid-cols-3 gap-2 border-t border-paper/18 pt-5"><div><p className="text-2xl font-semibold">{durationDays}</p><p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-paper/52">Days</p></div><div><p className="text-2xl font-semibold">{nights}</p><p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-paper/52">Nights</p></div><div><p className="text-2xl font-semibold">{totalTravelers}</p><p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-paper/52">Travelers</p></div></div></div></div>
         </div>
       </div>
@@ -1321,14 +1333,193 @@ function RouteRadar({
   );
 }
 
+// ADDED: More customization options for the Customize tab
 function Customization({ upgraded, setUpgraded, addedStop, tripTotal, onNext }: { upgraded: boolean; setUpgraded: (value: boolean) => void; addedStop: boolean; tripTotal: number; onNext: () => void }) {
   const grandTotal = tripTotal + (upgraded ? 1200 : 0);
+  
+  // Expanded options with more choices
   const options = [
-    { type: "Heritage stay", title: "Kesar Bagh Haveli", copy: "Courtyard rooms · breakfast included", price: upgraded ? "₹14,200" : "₹13,000", image: "https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=720&q=80", selected: true },
-    { type: "Activity", title: "Amber Fort at golden hour", copy: "Local guide · 45 min viewpoint buffer", price: "₹2,800", image: "https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=720&q=80", selected: true },
-    { type: "Transport", title: "Sedan + local driver", copy: "Rest windows protected · 3 days", price: "₹18,400", image: "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=720&q=80", selected: true },
+    { 
+      type: "Heritage stay", 
+      title: "Kesar Bagh Haveli", 
+      copy: "Courtyard rooms · breakfast included", 
+      price: upgraded ? "₹14,200" : "₹13,000", 
+      image: "https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=720&q=80", 
+      selected: true,
+      alternatives: [
+        { name: "Palace View Hotel", price: "₹11,500" },
+        { name: "Garden Retreat", price: "₹12,000" },
+        { name: "Heritage Haveli", price: "₹14,200" },
+      ]
+    },
+    { 
+      type: "Activity", 
+      title: "Amber Fort at golden hour", 
+      copy: "Local guide · 45 min viewpoint buffer", 
+      price: "₹2,800", 
+      image: "https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=720&q=80", 
+      selected: true,
+      alternatives: [
+        { name: "City Palace tour", price: "₹1,800" },
+        { name: "Jantar Mantar visit", price: "₹900" },
+        { name: "Hawa Mahal photo walk", price: "₹600" },
+      ]
+    },
+    { 
+      type: "Transport", 
+      title: "Sedan + local driver", 
+      copy: "Rest windows protected · 3 days", 
+      price: "₹18,400", 
+      image: "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=720&q=80", 
+      selected: true,
+      alternatives: [
+        { name: "SUV + driver", price: "₹22,500" },
+        { name: "Luxury sedan", price: "₹28,000" },
+        { name: "Self-drive", price: "₹12,000" },
+      ]
+    },
+    // ADDED: More options
+    { 
+      type: "Meal Plan", 
+      title: "Local food experiences", 
+      copy: "2 dinners · 1 street food tour", 
+      price: "₹3,500", 
+      image: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=720&q=80", 
+      selected: false,
+      alternatives: [
+        { name: "All meals included", price: "₹6,800" },
+        { name: "Breakfast only", price: "₹1,200" },
+        { name: "Chef's table experience", price: "₹4,500" },
+      ]
+    },
+    { 
+      type: "Wellness", 
+      title: "Morning yoga sessions", 
+      copy: "2 sunrise sessions · hotel terrace", 
+      price: "₹1,800", 
+      image: "https://images.unsplash.com/photo-1545205597-3d9d02c29597?auto=format&fit=crop&w=720&q=80", 
+      selected: false,
+      alternatives: [
+        { name: "Spa day add-on", price: "₹4,200" },
+        { name: "Meditation retreat", price: "₹2,500" },
+        { name: "None", price: "₹0" },
+      ]
+    },
+    { 
+      type: "Photography", 
+      title: "Sunrise photography tour", 
+      copy: "Professional guide · best light spots", 
+      price: "₹2,200", 
+      image: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=720&q=80", 
+      selected: false,
+      alternatives: [
+        { name: "Street photography walk", price: "₹1,500" },
+        { name: "Drone photography session", price: "₹3,800" },
+        { name: "None", price: "₹0" },
+      ]
+    },
   ];
-  return <div className="space-y-8 animate-fade-up"><div className="section-heading"><MiniLabel tone="teal">03 / Modular Customize</MiniLabel><h1>Make the itinerary feel <em>like yours.</em></h1><p>Swap the parts that matter. Orbit keeps the route, margin, and driver rest buffer in view.</p></div><div className="grid gap-6 xl:grid-cols-[1fr_330px]"><div className="space-y-4">{options.map((option, index) => <Card key={option.title} className="custom-option-card"><img src={option.image} alt="" className="h-28 w-36 shrink-0 rounded-xl object-cover sm:h-32 sm:w-44" /><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><div><MiniLabel tone={index === 1 ? "saffron" : "teal"}>{option.type}</MiniLabel><h3 className="mt-2 truncate font-display text-xl font-semibold tracking-tighter text-ink">{option.title}</h3><p className="mt-1 text-xs text-ink-muted">{option.copy}</p></div><span className="hidden text-sm font-bold text-ink sm:block">{option.price}</span></div><div className="mt-4 flex items-center gap-3"><StatusChip tone="green">Feasible</StatusChip><button type="button" onClick={() => toast.info(`${option.title} · ${option.copy}`)} className="text-xs font-bold text-teal hover:underline">View details</button>{index === 0 && <button type="button" onClick={() => setUpgraded(!upgraded)} className={cn("ml-auto rounded-lg border px-3 py-2 text-xs font-bold transition-colors", upgraded ? "border-teal/20 bg-teal/10 text-teal" : "border-ink/12 text-ink-muted hover:border-teal/30 hover:text-teal")}>{upgraded ? "Upgraded" : "Swap room"}</button>}</div></div></Card>)}</div><Card className="h-fit p-5 xl:sticky xl:top-28"><div className="flex items-center justify-between"><MiniLabel>Live delta pricing</MiniLabel><TrendingUp size={16} className="text-teal" /></div><div className="mt-5 rounded-2xl bg-ink p-4 text-paper"><p className="text-xs text-paper/52">Current total</p><p className="mt-1 font-display text-3xl font-semibold tracking-tighter">₹{grandTotal.toLocaleString("en-IN")}</p><p className="mt-2 text-xs font-semibold text-teal-light">{upgraded ? "+₹1,200 · room upgrade" : addedStop ? "+₹240 · local stop" : "Route base price"}</p></div><div className="mt-5 space-y-3 border-b border-ink/8 pb-5 text-xs"><div className="flex justify-between"><span className="text-ink-muted">Trip base</span><strong>₹47,800</strong></div>{addedStop && <div className="flex justify-between"><span className="text-ink-muted">Local stop</span><strong className="text-teal">+₹240</strong></div>}{upgraded && <div className="flex justify-between"><span className="text-ink-muted">Room upgrade</span><strong className="text-teal">+₹1,200</strong></div>}</div><div className="mt-5 flex items-start gap-2.5 rounded-xl bg-moss/8 p-3"><BadgeCheck size={16} className="shrink-0 text-moss" /><p className="text-xs leading-5 text-ink/70">Schedule feasible: driver rest buffer preserved.</p></div><Button onClick={onNext} className="mt-5 h-11 w-full rounded-xl bg-ink font-bold text-paper hover:bg-ink/90">Review trip <ArrowRight size={16} className="ml-2" /></Button></Card></div></div>;
+  
+  // State for selected alternatives
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, number>>({});
+  
+  const handleAlternativeSelect = (optionIndex: number, altIndex: number) => {
+    setSelectedOptions(prev => ({ ...prev, [optionIndex]: altIndex }));
+    toast.success(`Updated: ${options[optionIndex].alternatives[altIndex].name}`);
+  };
+
+  return (
+    <div className="space-y-8 animate-fade-up">
+      <div className="section-heading">
+        <MiniLabel tone="teal">03 / Modular Customize</MiniLabel>
+        <h1>Make the itinerary feel <em>like yours.</em></h1>
+        <p>Swap the parts that matter. Orbit keeps the route, margin, and driver rest buffer in view.</p>
+      </div>
+      
+      <div className="grid gap-6 xl:grid-cols-[1fr_330px]">
+        <div className="space-y-4">
+          {options.map((option, index) => (
+            <Card key={option.title} className="custom-option-card">
+              <img src={option.image} alt="" className="h-28 w-36 shrink-0 rounded-xl object-cover sm:h-32 sm:w-44" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <MiniLabel tone={index === 1 ? "saffron" : "teal"}>{option.type}</MiniLabel>
+                    <h3 className="mt-2 truncate font-display text-xl font-semibold tracking-tighter text-ink">{option.title}</h3>
+                    <p className="mt-1 text-xs text-ink-muted">{option.copy}</p>
+                  </div>
+                  <span className="hidden text-sm font-bold text-ink sm:block">{option.price}</span>
+                </div>
+                <div className="mt-4 flex items-center gap-3">
+                  <StatusChip tone="green">Feasible</StatusChip>
+                  <button type="button" onClick={() => toast.info(`${option.title} · ${option.copy}`)} className="text-xs font-bold text-teal hover:underline">View details</button>
+                  {index === 0 && (
+                    <button type="button" onClick={() => setUpgraded(!upgraded)} className={cn("ml-auto rounded-lg border px-3 py-2 text-xs font-bold transition-colors", upgraded ? "border-teal/20 bg-teal/10 text-teal" : "border-ink/12 text-ink-muted hover:border-teal/30 hover:text-teal")}>
+                      {upgraded ? "Upgraded" : "Swap room"}
+                    </button>
+                  )}
+                </div>
+                
+                {/* Alternatives dropdown */}
+                <div className="mt-3 border-t border-ink/8 pt-3">
+                  <button 
+                    type="button" 
+                    onClick={() => toast.info(`${option.title} alternatives shown`)}
+                    className="flex items-center gap-2 text-xs font-bold text-teal"
+                  >
+                    <ChevronDown size={13} /> Choose alternative
+                  </button>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {option.alternatives.map((alt, altIndex) => (
+                      <button
+                        key={alt.name}
+                        type="button"
+                        onClick={() => handleAlternativeSelect(index, altIndex)}
+                        className={cn(
+                          "rounded-full border px-3 py-1.5 text-[10px] font-bold transition-colors",
+                          selectedOptions[index] === altIndex
+                            ? "border-teal/30 bg-teal/10 text-teal"
+                            : "border-ink/10 text-ink-muted hover:border-teal/25 hover:text-teal"
+                        )}
+                      >
+                        {alt.name} · {alt.price}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+        
+        <Card className="h-fit p-5 xl:sticky xl:top-28">
+          <div className="flex items-center justify-between">
+            <MiniLabel>Live delta pricing</MiniLabel>
+            <TrendingUp size={16} className="text-teal" />
+          </div>
+          <div className="mt-5 rounded-2xl bg-ink p-4 text-paper">
+            <p className="text-xs text-paper/52">Current total</p>
+            <p className="mt-1 font-display text-3xl font-semibold tracking-tighter">₹{grandTotal.toLocaleString("en-IN")}</p>
+            <p className="mt-2 text-xs font-semibold text-teal-light">
+              {upgraded ? "+₹1,200 · room upgrade" : addedStop ? "+₹240 · local stop" : "Route base price"}
+            </p>
+          </div>
+          <div className="mt-5 space-y-3 border-b border-ink/8 pb-5 text-xs">
+            <div className="flex justify-between"><span className="text-ink-muted">Trip base</span><strong>₹47,800</strong></div>
+            {addedStop && <div className="flex justify-between"><span className="text-ink-muted">Local stop</span><strong className="text-teal">+₹240</strong></div>}
+            {upgraded && <div className="flex justify-between"><span className="text-ink-muted">Room upgrade</span><strong className="text-teal">+₹1,200</strong></div>}
+          </div>
+          <div className="mt-5 flex items-start gap-2.5 rounded-xl bg-moss/8 p-3">
+            <BadgeCheck size={16} className="shrink-0 text-moss" />
+            <p className="text-xs leading-5 text-ink/70">Schedule feasible: driver rest buffer preserved.</p>
+          </div>
+          <Button onClick={onNext} className="mt-5 h-11 w-full rounded-xl bg-ink font-bold text-paper hover:bg-ink/90">
+            Review trip <ArrowRight size={16} className="ml-2" />
+          </Button>
+        </Card>
+      </div>
+    </div>
+  );
 }
 
 function Checkout({ addedStop, upgraded, onNext }: { addedStop: boolean; upgraded: boolean; onNext: () => void }) {
@@ -1347,13 +1538,7 @@ function QrBlock() {
 }
 
 function DigitalPass({ destination, onAdapt, vendorConfirmed }: { destination: string; onAdapt: () => void; vendorConfirmed: boolean }) {
-  return <div className="space-y-8 animate-fade-up"><div className="section-heading flex flex-col justify-between gap-5 md:flex-row md:items-end"><div><MiniLabel tone="teal">05 / Live Digital Pass</MiniLabel><h1>Your trip, <em>held together.</em></h1><p>Offline-ready details, privacy-safe local chat, and one button for the unexpected.</p></div><StatusChip tone={vendorConfirmed ? "green" : "teal"}>{vendorConfirmed ? "Vendor confirmed" : "Trip live"}</StatusChip></div><div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]"><Card className="pass-card"><div className="flex items-start justify-between"><div><div className="flex items-center gap-2"><div className="brand-mark brand-mark-tiny">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-3 h-3">
-            <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="2"/>
-            <path d="M12 2C12 2 8 8 8 12C8 16 12 22 12 22C12 22 16 16 16 12C16 8 12 2 12 2Z" fill="white" opacity="0.3"/>
-            <circle cx="12" cy="12" r="3" fill="white"/>
-          </svg>
-        </div><span className="eyebrow text-paper/55">Orbit pass</span></div><h2 className="mt-5 font-display text-4xl font-semibold leading-none tracking-tighter">{destination}, with room<br />for <em className="text-saffron-light">wonder.</em></h2></div><span className="rounded-full border border-paper/15 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.13em] text-paper/58">TRP · 8029</span></div><div className="mt-12 grid grid-cols-2 gap-4 border-t border-paper/15 pt-5 sm:grid-cols-4"><div><p className="eyebrow text-paper/42">Traveler</p><p className="mt-1 text-sm font-semibold">Aanya Sharma</p></div><div><p className="eyebrow text-paper/42">Dates</p><p className="mt-1 text-sm font-semibold">12–14 Feb</p></div><div><p className="eyebrow text-paper/42">Pickup</p><p className="mt-1 text-sm font-semibold">Home</p></div><div><p className="eyebrow text-paper/42">Status</p><p className="mt-1 text-sm font-semibold text-teal-light">Live</p></div></div><div className="mt-7 flex flex-col gap-3 sm:flex-row"><button type="button" onClick={() => toast.success("Driver tracking opened · Rajesh is 12 minutes ahead")} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-paper/10 px-4 py-3 text-xs font-bold text-paper hover:bg-paper/15"><Navigation size={15} /> Track driver</button><button type="button" onClick={() => toast.success("Privacy relay chat is ready for the operator handoff")} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-paper/10 px-4 py-3 text-xs font-bold text-paper hover:bg-paper/15"><MessageCircle size={15} /> Privacy chat</button></div></Card><div className="space-y-5"><Card className="p-5"><div className="flex items-center justify-between"><div><MiniLabel>Today · Day 1</MiniLabel><p className="mt-2 text-sm font-bold text-ink">Your travel drawer</p></div><QrBlock /></div><div className="mt-5 grid grid-cols-2 gap-3"><button type="button" onClick={() => toast.success("QR voucher opened")} className="pass-item text-left"><Store size={15} className="text-saffron" /><div><strong>Local stop</strong><span>QR voucher · Fixed rate</span></div><ArrowRight size={14} className="ml-auto text-ink-muted" /></button><div className="pass-item"><Hotel size={15} className="text-teal" /><div><strong>Hotel check-in</strong><span>17:30 · Pushkar</span></div></div><div className="pass-item"><Phone size={15} className="text-teal" /><div><strong>Driver contact</strong><span>Rajesh · masked</span></div></div><div className="pass-item"><FileCheck2 size={15} className="text-moss" /><div><strong>Offline ready</strong><span>All details saved</span></div></div></div></Card><button type="button" onClick={onAdapt} className="adapt-button"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber text-ink"><CloudRain size={19} /></span><span className="flex-1 text-left"><MiniLabel tone="amber">Weather watch</MiniLabel><strong className="mt-1 block text-sm text-ink">Adapt My Day</strong><small className="mt-1 block text-xs text-ink-muted">Rain may affect your outdoor trek at 2:00 PM.</small></span><ArrowRight size={17} className="text-ink-muted" /></button></div></div></div>;
+  return <div className="space-y-8 animate-fade-up"><div className="section-heading flex flex-col justify-between gap-5 md:flex-row md:items-end"><div><MiniLabel tone="teal">05 / Live Digital Pass</MiniLabel><h1>Your trip, <em>held together.</em></h1><p>Offline-ready details, privacy-safe local chat, and one button for the unexpected.</p></div><StatusChip tone={vendorConfirmed ? "green" : "teal"}>{vendorConfirmed ? "Vendor confirmed" : "Trip live"}</StatusChip></div><div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]"><Card className="pass-card"><div className="flex items-start justify-between"><div><div className="flex items-center gap-2"><Logo variant="tiny" className="opacity-80" /><span className="eyebrow text-paper/55">Orbit pass</span></div><h2 className="mt-5 font-display text-4xl font-semibold leading-none tracking-tighter">{destination}, with room<br />for <em className="text-saffron-light">wonder.</em></h2></div><span className="rounded-full border border-paper/15 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.13em] text-paper/58">TRP · 8029</span></div><div className="mt-12 grid grid-cols-2 gap-4 border-t border-paper/15 pt-5 sm:grid-cols-4"><div><p className="eyebrow text-paper/42">Traveler</p><p className="mt-1 text-sm font-semibold">Aanya Sharma</p></div><div><p className="eyebrow text-paper/42">Dates</p><p className="mt-1 text-sm font-semibold">12–14 Feb</p></div><div><p className="eyebrow text-paper/42">Pickup</p><p className="mt-1 text-sm font-semibold">Home</p></div><div><p className="eyebrow text-paper/42">Status</p><p className="mt-1 text-sm font-semibold text-teal-light">Live</p></div></div><div className="mt-7 flex flex-col gap-3 sm:flex-row"><button type="button" onClick={() => toast.success("Driver tracking opened · Rajesh is 12 minutes ahead")} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-paper/10 px-4 py-3 text-xs font-bold text-paper hover:bg-paper/15"><Navigation size={15} /> Track driver</button><button type="button" onClick={() => toast.success("Privacy relay chat is ready for the operator handoff")} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-paper/10 px-4 py-3 text-xs font-bold text-paper hover:bg-paper/15"><MessageCircle size={15} /> Privacy chat</button></div></Card><div className="space-y-5"><Card className="p-5"><div className="flex items-center justify-between"><div><MiniLabel>Today · Day 1</MiniLabel><p className="mt-2 text-sm font-bold text-ink">Your travel drawer</p></div><QrBlock /></div><div className="mt-5 grid grid-cols-2 gap-3"><button type="button" onClick={() => toast.success("QR voucher opened")} className="pass-item text-left"><Store size={15} className="text-saffron" /><div><strong>Local stop</strong><span>QR voucher · Fixed rate</span></div><ArrowRight size={14} className="ml-auto text-ink-muted" /></button><div className="pass-item"><Hotel size={15} className="text-teal" /><div><strong>Hotel check-in</strong><span>17:30 · Pushkar</span></div></div><div className="pass-item"><Phone size={15} className="text-teal" /><div><strong>Driver contact</strong><span>Rajesh · masked</span></div></div><div className="pass-item"><FileCheck2 size={15} className="text-moss" /><div><strong>Offline ready</strong><span>All details saved</span></div></div></div></Card><button type="button" onClick={onAdapt} className="adapt-button"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber text-ink"><CloudRain size={19} /></span><span className="flex-1 text-left"><MiniLabel tone="amber">Weather watch</MiniLabel><strong className="mt-1 block text-sm text-ink">Adapt My Day</strong><small className="mt-1 block text-xs text-ink-muted">Rain may affect your outdoor trek at 2:00 PM.</small></span><ArrowRight size={17} className="text-ink-muted" /></button></div></div></div>;
 }
 
 function RippleOptions({ onResolve, resolved }: { onResolve: (key: string) => void; resolved: boolean }) {
@@ -1624,10 +1809,7 @@ export default function Home() {
               <p className="eyebrow text-teal">{modeMeta[mode].eyebrow}</p>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-muted">{modeMeta[mode].copy}</p>
             </div>
-            <div className="hidden items-center gap-2 text-right md:flex">
-              <div><p className="eyebrow">Demo session</p><p className="mt-1 text-xs font-bold text-ink">TRP-8029 <span className="mx-1 text-ink-muted">·</span> Simulated state</p></div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal/10 text-teal"><Gauge size={16} /></div>
-            </div>
+            
           </div>
           {mode === "traveler" && <ProgressRail step={step} />}
           {mode === "traveler" ? (
