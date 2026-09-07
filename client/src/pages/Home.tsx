@@ -77,7 +77,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { RouteRadarMap } from "@/components/RouteRadarMap";
+import { RouteRadarMap, POI } from "@/components/RouteRadarMap";
 import { format } from "date-fns";
 
 type Mode = "traveler" | "operator" | "vendor";
@@ -635,47 +635,536 @@ function IntakeCanvas({
 
 type ChatMessage = { id: string; role: "user" | "assistant"; text: string };
 
-const initialChatMessages: ChatMessage[] = [
-  { id: "seed-1", role: "assistant", text: "Hi! I'm the Sharma Ji Samosa Hub assistant. Ask me about hygiene, timing, recommendations, pre-ordering, or price." },
-];
+// =============================================================================
+// POI AI Chat Functions
+// =============================================================================
 
-/** Purely simulated keyword matcher — no real AI API call, per the visual-demo constraints. */
-function getSimulatedShopResponse(message: string): string {
-  const text = message.toLowerCase();
-  if (text.includes("clean") || text.includes("hygiene")) return "Yes! We have a 4.8 hygiene score. Verified by local authorities. Cleanliness is our top priority!";
-  if (text.includes("time") || text.includes("duration") || text.includes("long")) return "Just 5-7 minutes detour from your route. Fits perfectly in your 30-minute buffer window.";
-  if (text.includes("recommend") || text.includes("suggest")) return "Our hot samosas and masala chai are traveler favorites! The ₹120 combo is our most popular.";
-  if (text.includes("order") || text.includes("ahead")) return "Yes! Just click 'Add to route' and we'll have it ready when you arrive. No waiting!";
-  if (text.includes("expensive") || text.includes("price") || text.includes("cost")) return "Fixed rate menu: ₹120 for the traveler combo. Very affordable and great value!";
-  return "Great question! Our team is ready to help. Would you like me to connect you with the shop owner?";
+function getPOIAIResponse(poi: POI, userMessage: string): string {
+  const lowerMsg = userMessage.toLowerCase();
+  
+  // Temple responses
+  if (poi.type === 'temple') {
+    if (lowerMsg.includes('time') || lowerMsg.includes('hour') || lowerMsg.includes('open')) {
+      return `${poi.name} is open ${poi.hours || 'from early morning to evening'}. The detour takes about ${poi.detourTime}. Would you like to include this peaceful stop in your journey?`;
+    }
+    if (lowerMsg.includes('cost') || lowerMsg.includes('price') || lowerMsg.includes('fee') || lowerMsg.includes('₹')) {
+      return `Entry to ${poi.name} is free (donations welcome). The spiritual experience is priceless! The detour adds ${poi.detourTime} to your route.`;
+    }
+    if (lowerMsg.includes('worth') || lowerMsg.includes('recommend') || lowerMsg.includes('should') || lowerMsg.includes('good')) {
+      return `Absolutely! ${poi.name} has a ${poi.rating}★ rating from travelers. It's a beautiful, peaceful place that many find refreshing during a long journey. The detour is only ${poi.detourTime}.`;
+    }
+    if (lowerMsg.includes('thank')) {
+      return `You're welcome! ${poi.name} would be a beautiful addition to your journey. Let me know if you'd like to add it!`;
+    }
+    return `🛕 ${poi.name} is a serene spiritual destination with a ${poi.rating}★ rating. The detour takes ${poi.detourTime} and entry is free. Many travelers find it a meaningful pause during their journey. Would you like to add it to your route?`;
+  }
+  
+  // Food responses
+  if (poi.type === 'food') {
+    if (lowerMsg.includes('time') || lowerMsg.includes('hour') || lowerMsg.includes('open')) {
+      return `${poi.name} is open ${poi.hours || 'throughout the day'}. The detour takes about ${poi.detourTime}. Perfect timing for a meal break!`;
+    }
+    if (lowerMsg.includes('cost') || lowerMsg.includes('price') || lowerMsg.includes('budget') || lowerMsg.includes('₹')) {
+      return `A meal at ${poi.name} typically costs around ₹${poi.detourCost} per person. They have a ${poi.rating}★ rating and are known for quality food!`;
+    }
+    if (lowerMsg.includes('worth') || lowerMsg.includes('recommend') || lowerMsg.includes('should') || lowerMsg.includes('good')) {
+      return `Highly recommended! ${poi.name} has a ${poi.rating}★ rating and is a traveler favorite. The ${poi.detourTime} detour is well worth it for the experience!`;
+    }
+    if (lowerMsg.includes('thank')) {
+      return `You're welcome! ${poi.name} would be a great food stop. Let me know if you'd like to add it!`;
+    }
+    return `🍽️ ${poi.name} is a popular food destination with a ${poi.rating}★ rating. Meals cost around ₹${poi.detourCost} per person. The detour takes ${poi.detourTime}. Would you like to add this stop?`;
+  }
+  
+  // Entertainment responses
+  if (poi.type === 'entertainment') {
+    if (lowerMsg.includes('time') || lowerMsg.includes('hour') || lowerMsg.includes('open')) {
+      return `${poi.name} is open ${poi.hours || 'until late'}. The detour takes about ${poi.detourTime}. A fun break for the whole family!`;
+    }
+    if (lowerMsg.includes('cost') || lowerMsg.includes('price') || lowerMsg.includes('ticket') || lowerMsg.includes('₹')) {
+      return `Entry to ${poi.name} starts at ₹${poi.detourCost} per person. They have a ${poi.rating}★ rating and offer great entertainment!`;
+    }
+    if (lowerMsg.includes('worth') || lowerMsg.includes('recommend') || lowerMsg.includes('should') || lowerMsg.includes('good')) {
+      return `Definitely! ${poi.name} has a ${poi.rating}★ rating and offers great entertainment. The ${poi.detourTime} detour is a fun way to break up the journey!`;
+    }
+    if (lowerMsg.includes('thank')) {
+      return `You're welcome! ${poi.name} would be a fun addition. Let me know if you'd like to add it!`;
+    }
+    return `🎮 ${poi.name} offers great entertainment with a ${poi.rating}★ rating. Tickets start at ₹${poi.detourCost} per person. The detour takes ${poi.detourTime}. Would you like to include it?`;
+  }
+  
+  // Shopping responses
+  if (poi.type === 'shopping') {
+    if (lowerMsg.includes('time') || lowerMsg.includes('hour') || lowerMsg.includes('open')) {
+      return `${poi.name} is open ${poi.hours || 'throughout the day'}. The detour takes about ${poi.detourTime} - perfect for some shopping!`;
+    }
+    if (lowerMsg.includes('cost') || lowerMsg.includes('price') || lowerMsg.includes('budget') || lowerMsg.includes('₹')) {
+      return `${poi.name} has products for all budgets. Entry is free, and you can spend anywhere from ₹200 upwards! They have a ${poi.rating}★ rating.`;
+    }
+    if (lowerMsg.includes('worth') || lowerMsg.includes('recommend') || lowerMsg.includes('should') || lowerMsg.includes('good')) {
+      return `Absolutely worth it! ${poi.name} has a ${poi.rating}★ rating and offers quality products. The ${poi.detourTime} detour is great for picking up local items!`;
+    }
+    if (lowerMsg.includes('thank')) {
+      return `You're welcome! ${poi.name} would be a great shopping stop. Let me know if you'd like to add it!`;
+    }
+    return `🛍️ ${poi.name} is a popular shopping destination with a ${poi.rating}★ rating. The detour takes ${poi.detourTime}. Would you like to add this shopping stop?`;
+  }
+  
+  return `I'd be happy to help with ${poi.name}! ${poi.description} The detour takes ${poi.detourTime} and costs ₹${poi.detourCost}. Would you like to add it to your route?`;
 }
 
-function ChatDrawer({ onClose, onAdd, added }: { onClose: () => void; onAdd: () => void; added: boolean }) {
-  const [messages, setMessages] = useState<ChatMessage[]>(initialChatMessages);
-  const [input, setInput] = useState("");
-  const [typing, setTyping] = useState(false);
+// =============================================================================
+// POI Chat Drawer Component
+// =============================================================================
 
-  const sendMessage = () => {
+function POIChatDrawer({ 
+  poi, 
+  onClose, 
+  onAdd, 
+  added,
+  messages,
+  onSendMessage,
+  typing
+}: { 
+  poi: POI;
+  onClose: () => void;
+  onAdd: () => void;
+  added: boolean;
+  messages: ChatMessage[];
+  onSendMessage: (msg: string) => void;
+  typing: boolean;
+}) {
+  const [input, setInput] = useState("");
+  
+  const handleSend = () => {
     const trimmed = input.trim();
     if (!trimmed || typing) return;
-    const userMessage: ChatMessage = { id: `u-${Date.now()}`, role: "user", text: trimmed };
-    setMessages((current) => [...current, userMessage]);
+    onSendMessage(trimmed);
     setInput("");
-    setTyping(true);
-    setTimeout(() => {
-      const reply: ChatMessage = { id: `a-${Date.now()}`, role: "assistant", text: getSimulatedShopResponse(trimmed) };
-      setMessages((current) => [...current, reply]);
-      setTyping(false);
-    }, 1000);
   };
 
-  return <div className="drawer absolute inset-y-0 right-0 z-20 flex w-full max-w-87.5 flex-col bg-paper shadow-[-14px_0_36px_rgba(23,34,35,0.16)] sm:w-87.5 animate-slide-in"><div className="flex items-center justify-between border-b border-ink/10 px-5 py-5"><div><MiniLabel tone="saffron">Route waypoint · Chat</MiniLabel><h3 className="mt-1 font-display text-xl font-semibold tracking-tighter">Sharma Ji Samosa Hub</h3></div><button type="button" className="icon-button" onClick={onClose}><X size={16} /></button></div><div className="flex-1 overflow-y-auto"><img src={stopImage} alt="Samosa and tea at a roadside stop" className="h-32 w-full object-cover" /><div className="flex items-center justify-between px-5 pt-4"><span className="flex items-center gap-1.5 text-sm font-bold text-ink"><Star size={15} fill="currentColor" className="text-saffron" /> 4.8 hygiene score</span><span className="text-xs font-semibold text-moss">Open · 10:30–18:00</span></div><div className="space-y-3 p-5">{messages.map((message) => <div key={message.id} className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}>{message.role === "assistant" && <div className="mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal text-white"><Bot size={14} /></div>}<div className={cn("max-w-55 rounded-2xl px-3.5 py-2.5 text-sm leading-5", message.role === "user" ? "bg-teal text-white" : "bg-teal/8 text-ink")}>{message.text}</div></div>)}{typing && <div className="flex justify-start"><div className="mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal text-white"><Bot size={14} /></div><div className="flex items-center gap-1 rounded-2xl bg-teal/8 px-3.5 py-3"><span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal [animation-delay:-0.2s]" /><span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal [animation-delay:-0.1s]" /><span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal" /></div></div>}</div></div><div className="border-t border-ink/10 p-5"><div className="field-shell mb-3"><input value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => event.key === "Enter" && sendMessage()} placeholder="Ask about hygiene, timing, price…" aria-label="Chat message" /><button type="button" onClick={sendMessage} className="icon-button h-8 w-8 shrink-0" aria-label="Send message"><Send size={14} className="text-teal" /></button></div><Button onClick={onAdd} className={cn("h-11 w-full rounded-xl font-bold", added ? "bg-moss text-white hover:bg-moss" : "bg-teal text-white hover:bg-teal-dark")}>{added ? <><Check size={16} className="mr-2" /> Added to route</> : <><Plus size={16} className="mr-2" /> Add to route · ₹240</>}</Button></div></div>;
+  return (
+    <div className="drawer absolute inset-y-0 right-0 z-50 flex w-full max-w-95 flex-col bg-paper shadow-[-14px_0_36px_rgba(23,34,35,0.16)] sm:w-95 animate-slide-in">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-ink/10 px-5 py-4">
+        <div>
+          <MiniLabel tone="teal">Route waypoint · AI Assistant</MiniLabel>
+          <h3 className="mt-1 flex items-center gap-2 font-display text-xl font-semibold tracking-tighter">
+            <span>{poi.icon}</span>
+            {poi.name}
+          </h3>
+        </div>
+        <button type="button" className="icon-button" onClick={onClose}>
+          <X size={16} />
+        </button>
+      </div>
+      
+      {/* Chat messages */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="flex items-center justify-between border-b border-ink/8 px-5 py-3">
+          <span className="flex items-center gap-1.5 text-xs font-bold text-ink">
+            <Star size={14} fill="currentColor" className="text-saffron" /> 
+            {poi.rating} · {poi.detourTime} detour
+          </span>
+          <span className="text-xs font-semibold text-moss">
+            {poi.hours || 'Open today'}
+          </span>
+        </div>
+        
+        <div className="space-y-3 p-5">
+          {messages.map((message) => (
+            <div key={message.id} className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}>
+              {message.role === "assistant" && (
+                <div className="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal text-white">
+                  <Bot size={15} />
+                </div>
+              )}
+              <div className={cn(
+                "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-5",
+                message.role === "user" 
+                  ? "bg-teal text-white" 
+                  : "bg-teal/8 text-ink"
+              )}>
+                {message.text}
+              </div>
+            </div>
+          ))}
+          {typing && (
+            <div className="flex justify-start">
+              <div className="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal text-white">
+                <Bot size={15} />
+              </div>
+              <div className="flex items-center gap-1 rounded-2xl bg-teal/8 px-4 py-3">
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal [animation-delay:-0.2s]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal [animation-delay:-0.1s]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal" />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Footer */}
+      <div className="border-t border-ink/10 p-4">
+        <div className="field-shell mb-3">
+          <input 
+            value={input} 
+            onChange={(e) => setInput(e.target.value)} 
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            placeholder={`Ask about ${poi.name}...`}
+            aria-label="Chat message"
+            disabled={typing}
+          />
+          <button 
+            type="button" 
+            onClick={handleSend} 
+            className="icon-button h-8 w-8 shrink-0"
+            disabled={typing}
+            aria-label="Send message"
+          >
+            <Send size={14} className="text-teal" />
+          </button>
+        </div>
+        <Button 
+          onClick={onAdd} 
+          className={cn(
+            "h-11 w-full rounded-xl font-bold",
+            added 
+              ? "bg-moss text-white hover:bg-moss" 
+              : "bg-teal text-white hover:bg-teal-dark"
+          )}
+          disabled={added}
+        >
+          {added ? (
+            <><Check size={16} className="mr-2" /> Added to route</>
+          ) : (
+            <><Plus size={16} className="mr-2" /> Add to route · ₹{poi.detourCost}</>
+          )}
+        </Button>
+      </div>
+    </div>
+  );
 }
 
-function RouteRadar({ destination, routePlan, addedStop, onAddStop, tripTotal, onNext }: { destination: string; routePlan: RoutePlan; addedStop: boolean; onAddStop: () => void; tripTotal: number; onNext: () => void }) {
-  const [drawer, setDrawer] = useState(false);
+// =============================================================================
+// RouteRadar Component - Updated with POI support and Test Button
+// =============================================================================
+
+function RouteRadar({ 
+  destination, 
+  routePlan, 
+  addedStop, 
+  onAddStop, 
+  tripTotal, 
+  onNext,
+  selectedPOI,
+  setSelectedPOI,
+  poiChatOpen,
+  setPoiChatOpen,
+  addedPOIs,
+  setAddedPOIs,
+  chatMessages,
+  setChatMessages,
+  chatTyping,
+  setChatTyping,
+}: { 
+  destination: string;
+  routePlan: RoutePlan;
+  addedStop: boolean;
+  onAddStop: () => void;
+  tripTotal: number;
+  onNext: () => void;
+  selectedPOI: POI | null;
+  setSelectedPOI: (poi: POI | null) => void;
+  poiChatOpen: boolean;
+  setPoiChatOpen: (open: boolean) => void;
+  addedPOIs: POI[];
+  setAddedPOIs: (pois: POI[]) => void;
+  chatMessages: ChatMessage[];
+  setChatMessages: (messages: ChatMessage[]) => void;
+  chatTyping: boolean;
+  setChatTyping: (typing: boolean) => void;
+}) {
   const [activeDay, setActiveDay] = useState(1);
-  return <div className="space-y-8 animate-fade-up"><div className="section-heading flex flex-col justify-between gap-6 lg:flex-row lg:items-end"><div><MiniLabel tone="teal">02 / Route Radar</MiniLabel><h1>The route found room for <em>one more good stop.</em></h1><p>Route-aligned discovery, live driving buffers, and an assistant that knows when not to add more.</p></div><div className="flex items-center gap-2"><StatusChip tone="green">Feasible route</StatusChip><StatusChip tone="teal">8 waypoints</StatusChip></div></div><div className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]"><Card className="overflow-hidden p-0"><div className="flex items-center justify-between border-b border-ink/8 px-5 py-4"><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal/10 text-teal"><Route size={17} /></div><div><p className="text-sm font-bold text-ink">{routePlan.origin} → {routePlan.localStop}</p><p className="text-xs text-ink-muted">Day 1 · {routePlan.distance} · {routePlan.driveTime}</p></div></div><div className="flex gap-1.5">{[1, 2, 3].map((day) => <button key={day} type="button" onClick={() => { setActiveDay(day); toast.success(`Day ${day} route loaded`); }} className={cn("day-tab", activeDay === day && "day-tab-active")}>Day {day}</button>)}</div></div><div className="relative h-107.5 overflow-hidden bg-[#cbd9d3]"><RouteRadarMap destination={destination} originLabel={routePlan.origin} localStopLabel={routePlan.localStop} scenicStopLabel={routePlan.scenicStop} hotelLabel={routePlan.hotel} onLocalStopClick={() => setDrawer(true)} /><div className="pointer-events-none absolute bottom-4 left-4 rounded-xl border border-paper/50 bg-paper/88 px-3 py-2 shadow-sm backdrop-blur-md"><p className="eyebrow text-teal">Live route trace</p><p className="mt-1 text-xs font-semibold text-ink">Buffer protected · 30 min</p></div>{drawer && <ChatDrawer onClose={() => setDrawer(false)} onAdd={() => { onAddStop(); setDrawer(false); }} added={addedStop} />}</div></Card><div className="space-y-5"><Card className="p-5"><div className="flex items-center justify-between"><div><MiniLabel>Daily timeline</MiniLabel><p className="mt-2 text-sm font-bold text-ink">Friday · 12 February</p></div><button type="button" onClick={() => toast.info("Timeline options are available in the connected trip view")} className="icon-button" aria-label="Timeline options"><MoreHorizontal size={17} /></button></div><div className="mt-6 space-y-0">{[{ time: "07:30", label: "Home pickup", meta: "Driver · Rajesh K.", icon: HomeIcon, tone: "teal" }, { time: "11:40", label: routePlan.localStop, meta: addedStop ? "Added · 30 min buffer" : "Tap map pin to explore", icon: Store, tone: addedStop ? "saffron" : "muted" }, { time: "14:20", label: routePlan.scenicStop, meta: "45 min · scenic stop", icon: Compass, tone: "teal" }, { time: "17:30", label: "Heritage hotel check-in", meta: `${routePlan.hotel} · 2 nights`, icon: Hotel, tone: "teal" }].map((item, index) => { const Icon = item.icon; return <div key={item.label} className="timeline-row"><div className={cn("timeline-icon", item.tone === "saffron" ? "bg-saffron/12 text-saffron" : item.tone === "muted" ? "bg-ink/6 text-ink-muted" : "bg-teal/10 text-teal")}><Icon size={15} /></div><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><p className={cn("truncate text-xs font-bold", item.tone === "muted" ? "text-ink-muted" : "text-ink")}>{item.label}</p><span className="text-[10px] font-bold text-ink-muted">{item.time}</span></div><p className="mt-1 truncate text-[11px] text-ink-muted">{item.meta}</p></div>{index < 3 && <div className="timeline-connector" />}</div>; })}</div></Card><Card className="border-teal/12 bg-teal/5 p-5"><div className="flex items-start gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal text-white"><Bot size={17} /></div><div><MiniLabel tone="teal">Contextual assistant</MiniLabel><p className="mt-2 text-sm font-semibold leading-5 text-ink">"Your next open window is 30 minutes. Want a local stop instead of a generic rest area?"</p><button type="button" onClick={() => setDrawer(true)} className="mt-4 flex items-center gap-1.5 text-xs font-bold text-teal">Explore waypoint <ArrowRight size={13} /></button></div></div></Card></div></div><PriceBar total={`₹${tripTotal.toLocaleString("en-IN")}`} delta={addedStop ? "+₹240 · local stop added" : "Route base price"} /><div className="flex justify-end"><Button onClick={onNext} className="group h-11 rounded-xl bg-ink px-5 font-bold text-paper hover:bg-ink/90">Keep shaping the trip <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" /></Button></div></div>;
+  
+  // Handle POI click
+  const handlePOIClick = (poi: POI) => {
+    console.log("POI clicked in RouteRadar:", poi.name);
+    setSelectedPOI(poi);
+    setPoiChatOpen(true);
+    
+    // Initialize chat with welcome message
+    const welcomeMessage: ChatMessage = {
+      id: `assistant-${Date.now()}`,
+      role: "assistant",
+      text: `👋 Hi! I'm your AI assistant for ${poi.name}. ${poi.description} The detour takes ${poi.detourTime} and costs ₹${poi.detourCost}. Would you like to add it to your route?`
+    };
+    setChatMessages([welcomeMessage]);
+  };
+  
+  // Handle sending message in POI chat
+  const handleSendPOIMessage = (msg: string) => {
+    if (!selectedPOI) return;
+    
+    // Add user message
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      text: msg
+    };
+    
+    const updatedMessages = [...chatMessages, userMessage];
+    setChatMessages(updatedMessages);
+    
+    // Simulate AI response
+    setChatTyping(true);
+    setTimeout(() => {
+      const response = getPOIAIResponse(selectedPOI, msg);
+      const assistantMessage: ChatMessage = {
+        id: `assistant-${Date.now()}`,
+        role: "assistant",
+        text: response
+      };
+      setChatMessages([...updatedMessages, assistantMessage]);
+      setChatTyping(false);
+    }, 800 + Math.random() * 600);
+  };
+  
+  // Handle adding POI to route
+  const handleAddPOI = (poi: POI) => {
+    if (addedPOIs.some(p => p.id === poi.id)) return;
+    
+    setAddedPOIs([...addedPOIs, poi]);
+    setPoiChatOpen(false);
+    setSelectedPOI(null);
+    
+    toast.success(`${poi.name} added to route! +₹${poi.detourCost}`);
+  };
+
+  const allAddedCost = addedPOIs.reduce((sum, p) => sum + p.detourCost, 0);
+
+  // Test POI click handler
+  const handleTestPOIClick = () => {
+    console.log("Test chat button clicked");
+    const testPOI: POI = {
+      id: "test-1",
+      name: "Test POI",
+      type: "food",
+      position: { lat: 26.9124, lng: 75.7873 },
+      description: "This is a test POI",
+      detourTime: "10 min",
+      detourCost: 100,
+      rating: "4.5",
+      icon: "🍽️",
+      hours: "10:00 AM - 8:00 PM"
+    };
+    setSelectedPOI(testPOI);
+    setPoiChatOpen(true);
+    const welcomeMessage: ChatMessage = {
+      id: `assistant-${Date.now()}`,
+      role: "assistant",
+      text: "👋 This is a test chat! The POI chat works!"
+    };
+    setChatMessages([welcomeMessage]);
+  };
+
+  return (
+    <div className="space-y-8 animate-fade-up">
+      <div className="section-heading flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+        <div>
+          <MiniLabel tone="teal">02 / Route Radar</MiniLabel>
+          <h1>Your route with <em>optional discoveries.</em></h1>
+          <p>The main route stays clear. Click any POI to explore if it's worth the detour.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <StatusChip tone="green">Route ready</StatusChip>
+          <StatusChip tone="teal">{addedPOIs.length > 0 ? `${addedPOIs.length} stop${addedPOIs.length > 1 ? 's' : ''} added` : 'Tap POIs to explore'}</StatusChip>
+        </div>
+      </div>
+      
+      <div className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
+        <Card className="overflow-hidden p-0">
+          <div className="flex items-center justify-between border-b border-ink/8 px-5 py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal/10 text-teal">
+                <Route size={17} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-ink">
+                  {routePlan.origin} → {routePlan.destination}
+                </p>
+                <p className="text-xs text-ink-muted">
+                  {routePlan.distance} · {routePlan.driveTime} · {addedPOIs.length > 0 ? `${addedPOIs.length} detour${addedPOIs.length > 1 ? 's' : ''}` : 'Direct route'}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-1.5">
+              {[1, 2, 3].map((day) => (
+                <button 
+                  key={day} 
+                  type="button" 
+                  onClick={() => { 
+                    setActiveDay(day); 
+                    toast.success(`Day ${day} route loaded`); 
+                  }} 
+                  className={cn("day-tab", activeDay === day && "day-tab-active")}
+                >
+                  Day {day}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          <div className="relative h-112.5 overflow-hidden bg-[#cbd9d3]">
+            <RouteRadarMap 
+              destination={destination}
+              originLabel={routePlan.origin}
+              onPOIClick={handlePOIClick}
+              selectedPOI={selectedPOI}
+              addedPOIs={addedPOIs}
+            />
+            
+            <div className="pointer-events-none absolute bottom-4 left-4 rounded-xl border border-paper/50 bg-paper/88 px-3 py-2 shadow-sm backdrop-blur-md">
+              <p className="eyebrow text-teal">Route • Google Maps style</p>
+              <p className="mt-1 text-xs font-semibold text-ink">
+                {addedPOIs.length > 0 ? `${addedPOIs.length} stop${addedPOIs.length > 1 ? 's' : ''} added` : 'Tap any POI to explore'}
+              </p>
+            </div>
+            
+            {/* Test Button - Click this to verify chat works */}
+            <button 
+              type="button"
+              onClick={handleTestPOIClick}
+              className="absolute top-4 right-16 z-50 bg-teal text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-teal-dark transition-colors shadow-lg"
+            >
+              🧪 Test Chat
+            </button>
+            
+            {/* POI Chat Drawer */}
+            {poiChatOpen && selectedPOI && (
+              <POIChatDrawer
+                poi={selectedPOI}
+                onClose={() => {
+                  setPoiChatOpen(false);
+                  setSelectedPOI(null);
+                }}
+                onAdd={() => handleAddPOI(selectedPOI)}
+                added={addedPOIs.some(p => p.id === selectedPOI.id)}
+                messages={chatMessages}
+                onSendMessage={handleSendPOIMessage}
+                typing={chatTyping}
+              />
+            )}
+          </div>
+        </Card>
+        
+        <div className="space-y-5">
+          <Card className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <MiniLabel>Daily timeline</MiniLabel>
+                <p className="mt-2 text-sm font-bold text-ink">Friday · 12 February</p>
+              </div>
+              <button type="button" onClick={() => toast.info("Timeline options")} className="icon-button">
+                <MoreHorizontal size={17} />
+              </button>
+            </div>
+            
+            <div className="mt-6 space-y-0">
+              {/* Start */}
+              <div className="timeline-row">
+                <div className="timeline-icon bg-teal/10 text-teal">
+                  <HomeIcon size={15} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-xs font-bold text-ink">Home pickup</p>
+                    <span className="text-[10px] font-bold text-ink-muted">07:30</span>
+                  </div>
+                  <p className="mt-1 truncate text-[11px] text-ink-muted">Driver · Rajesh K.</p>
+                </div>
+                <div className="timeline-connector" />
+              </div>
+              
+              {/* POI stops */}
+              {addedPOIs.map((poi, index) => (
+                <div key={poi.id} className="timeline-row">
+                  <div className="timeline-icon bg-saffron/12 text-saffron">
+                    <span className="text-sm">{poi.icon}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="truncate text-xs font-bold text-ink">{poi.name}</p>
+                      <span className="text-[10px] font-bold text-ink-muted">
+                        {`${9 + index * 2}:${index === 0 ? '40' : '20'}`}
+                      </span>
+                    </div>
+                    <p className="mt-1 truncate text-[11px] text-ink-muted">
+                      {poi.detourTime} · ₹{poi.detourCost}
+                    </p>
+                  </div>
+                  {index < addedPOIs.length - 1 && <div className="timeline-connector" />}
+                </div>
+              ))}
+              
+              {/* Destination */}
+              <div className="timeline-row">
+                <div className="timeline-icon bg-saffron/12 text-saffron">
+                  <Flag size={15} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-xs font-bold text-ink">{routePlan.destination}</p>
+                    <span className="text-[10px] font-bold text-ink-muted">17:30</span>
+                  </div>
+                  <p className="mt-1 truncate text-[11px] text-ink-muted">Arrival at destination</p>
+                </div>
+              </div>
+            </div>
+          </Card>
+          
+          <Card className="border-teal/12 bg-teal/5 p-5">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal text-white">
+                <Bot size={17} />
+              </div>
+              <div>
+                <MiniLabel tone="teal">Contextual assistant</MiniLabel>
+                <p className="mt-2 text-sm font-semibold leading-5 text-ink">
+                  {addedPOIs.length > 0 
+                    ? `You've added ${addedPOIs.length} stop${addedPOIs.length > 1 ? 's' : ''}. Want to explore more along the way?` 
+                    : "Click any POI on the map to learn more about it. I'll help you decide!"}
+                </p>
+                {addedPOIs.length === 0 && (
+                  <button 
+                    type="button" 
+                    onClick={() => toast.info("Tap a POI marker on the map to start exploring!")} 
+                    className="mt-4 flex items-center gap-1.5 text-xs font-bold text-teal"
+                  >
+                    Explore nearby stops <ArrowRight size={13} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
+      
+      <PriceBar 
+        total={`₹${tripTotal.toLocaleString("en-IN")}`} 
+        delta={addedPOIs.length > 0 ? `+₹${allAddedCost} · ${addedPOIs.length} stop${addedPOIs.length > 1 ? 's' : ''} added` : "Route base price"} 
+      />
+      
+      <div className="flex justify-end">
+        <Button 
+          onClick={onNext} 
+          className="group h-11 rounded-xl bg-ink px-5 font-bold text-paper hover:bg-ink/90"
+        >
+          Keep shaping the trip <ArrowRight size={16} className="ml-2 transition-transform group-hover:translate-x-1" />
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 function Customization({ upgraded, setUpgraded, addedStop, tripTotal, onNext }: { upgraded: boolean; setUpgraded: (value: boolean) => void; addedStop: boolean; tripTotal: number; onNext: () => void }) {
@@ -685,7 +1174,7 @@ function Customization({ upgraded, setUpgraded, addedStop, tripTotal, onNext }: 
     { type: "Activity", title: "Amber Fort at golden hour", copy: "Local guide · 45 min viewpoint buffer", price: "₹2,800", image: "https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=720&q=80", selected: true },
     { type: "Transport", title: "Sedan + local driver", copy: "Rest windows protected · 3 days", price: "₹18,400", image: "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=720&q=80", selected: true },
   ];
-  return <div className="space-y-8 animate-fade-up"><div className="section-heading"><MiniLabel tone="teal">03 / Modular Customize</MiniLabel><h1>Make the itinerary feel <em>like yours.</em></h1><p>Swap the parts that matter. Orbit keeps the route, margin, and driver rest buffer in view.</p></div><div className="grid gap-6 xl:grid-cols-[1fr_330px]"><div className="space-y-4">{options.map((option, index) => <Card key={option.title} className="custom-option-card"><img src={option.image} alt="" className="h-28 w-36 shrink-0 rounded-xl object-cover sm:h-32 sm:w-44" /><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><div><MiniLabel tone={index === 1 ? "saffron" : "teal"}>{option.type}</MiniLabel><h3 className="mt-2 truncate font-display text-xl font-semibold tracking-tighter text-ink">{option.title}</h3><p className="mt-1 text-xs text-ink-muted">{option.copy}</p></div><span className="hidden text-sm font-bold text-ink sm:block">{option.price}</span></div><div className="mt-4 flex items-center gap-3"><StatusChip tone="green">Feasible</StatusChip><button type="button" onClick={() => toast.info(`${option.title} · ${option.copy}`)} className="text-xs font-bold text-teal hover:underline">View details</button>{index === 0 && <button type="button" onClick={() => setUpgraded(!upgraded)} className={cn("ml-auto rounded-lg border px-3 py-2 text-xs font-bold transition-colors", upgraded ? "border-teal/20 bg-teal/10 text-teal" : "border-ink/12 text-ink-muted hover:border-teal/30 hover:text-teal")}>{upgraded ? "Upgraded" : "Swap room"}</button>}</div></div></Card>)}</div><Card className="h-fit p-5 xl:sticky xl:top-28"><div className="flex items-center justify-between"><MiniLabel>Live delta pricing</MiniLabel><TrendingUp size={16} className="text-teal" /></div><div className="mt-5 rounded-2xl bg-ink p-4 text-paper"><p className="text-xs text-paper/52">Current total</p><p className="mt-1 font-display text-3xl font-semibold tracking-tighter">₹{grandTotal.toLocaleString("en-IN")}</p><p className="mt-2 text-xs font-semibold text-teal-light">{upgraded ? "+₹1,200 · room upgrade" : addedStop ? "+₹240 · local stop" : "Route base price"}</p></div><div className="mt-5 space-y-3 border-b border-ink/8 pb-5 text-xs"><div className="flex justify-between"><span className="text-ink-muted">Trip base</span><strong>₹47,800</strong></div>{addedStop && <div className="flex justify-between"><span className="text-ink-muted">Samosa stop</span><strong className="text-teal">+₹240</strong></div>}{upgraded && <div className="flex justify-between"><span className="text-ink-muted">Room upgrade</span><strong className="text-teal">+₹1,200</strong></div>}</div><div className="mt-5 flex items-start gap-2.5 rounded-xl bg-moss/8 p-3"><BadgeCheck size={16} className="shrink-0 text-moss" /><p className="text-xs leading-5 text-ink/70">Schedule feasible: driver rest buffer preserved.</p></div><Button onClick={onNext} className="mt-5 h-11 w-full rounded-xl bg-ink font-bold text-paper hover:bg-ink/90">Review trip <ArrowRight size={16} className="ml-2" /></Button></Card></div></div>;
+  return <div className="space-y-8 animate-fade-up"><div className="section-heading"><MiniLabel tone="teal">03 / Modular Customize</MiniLabel><h1>Make the itinerary feel <em>like yours.</em></h1><p>Swap the parts that matter. Orbit keeps the route, margin, and driver rest buffer in view.</p></div><div className="grid gap-6 xl:grid-cols-[1fr_330px]"><div className="space-y-4">{options.map((option, index) => <Card key={option.title} className="custom-option-card"><img src={option.image} alt="" className="h-28 w-36 shrink-0 rounded-xl object-cover sm:h-32 sm:w-44" /><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><div><MiniLabel tone={index === 1 ? "saffron" : "teal"}>{option.type}</MiniLabel><h3 className="mt-2 truncate font-display text-xl font-semibold tracking-tighter text-ink">{option.title}</h3><p className="mt-1 text-xs text-ink-muted">{option.copy}</p></div><span className="hidden text-sm font-bold text-ink sm:block">{option.price}</span></div><div className="mt-4 flex items-center gap-3"><StatusChip tone="green">Feasible</StatusChip><button type="button" onClick={() => toast.info(`${option.title} · ${option.copy}`)} className="text-xs font-bold text-teal hover:underline">View details</button>{index === 0 && <button type="button" onClick={() => setUpgraded(!upgraded)} className={cn("ml-auto rounded-lg border px-3 py-2 text-xs font-bold transition-colors", upgraded ? "border-teal/20 bg-teal/10 text-teal" : "border-ink/12 text-ink-muted hover:border-teal/30 hover:text-teal")}>{upgraded ? "Upgraded" : "Swap room"}</button>}</div></div></Card>)}</div><Card className="h-fit p-5 xl:sticky xl:top-28"><div className="flex items-center justify-between"><MiniLabel>Live delta pricing</MiniLabel><TrendingUp size={16} className="text-teal" /></div><div className="mt-5 rounded-2xl bg-ink p-4 text-paper"><p className="text-xs text-paper/52">Current total</p><p className="mt-1 font-display text-3xl font-semibold tracking-tighter">₹{grandTotal.toLocaleString("en-IN")}</p><p className="mt-2 text-xs font-semibold text-teal-light">{upgraded ? "+₹1,200 · room upgrade" : addedStop ? "+₹240 · local stop" : "Route base price"}</p></div><div className="mt-5 space-y-3 border-b border-ink/8 pb-5 text-xs"><div className="flex justify-between"><span className="text-ink-muted">Trip base</span><strong>₹47,800</strong></div>{addedStop && <div className="flex justify-between"><span className="text-ink-muted">Local stop</span><strong className="text-teal">+₹240</strong></div>}{upgraded && <div className="flex justify-between"><span className="text-ink-muted">Room upgrade</span><strong className="text-teal">+₹1,200</strong></div>}</div><div className="mt-5 flex items-start gap-2.5 rounded-xl bg-moss/8 p-3"><BadgeCheck size={16} className="shrink-0 text-moss" /><p className="text-xs leading-5 text-ink/70">Schedule feasible: driver rest buffer preserved.</p></div><Button onClick={onNext} className="mt-5 h-11 w-full rounded-xl bg-ink font-bold text-paper hover:bg-ink/90">Review trip <ArrowRight size={16} className="ml-2" /></Button></Card></div></div>;
 }
 
 function Checkout({ addedStop, upgraded, onNext }: { addedStop: boolean; upgraded: boolean; onNext: () => void }) {
@@ -710,7 +1199,7 @@ function DigitalPass({ destination, onAdapt, vendorConfirmed }: { destination: s
             <path d="M12 2C12 2 8 8 8 12C8 16 12 22 12 22C12 22 16 16 16 12C16 8 12 2 12 2Z" fill="white" opacity="0.3"/>
             <circle cx="12" cy="12" r="3" fill="white"/>
           </svg>
-        </div><span className="eyebrow text-paper/55">Orbit pass</span></div><h2 className="mt-5 font-display text-4xl font-semibold leading-none tracking-tighter">{destination}, with room<br />for <em className="text-saffron-light">wonder.</em></h2></div><span className="rounded-full border border-paper/15 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.13em] text-paper/58">TRP · 8029</span></div><div className="mt-12 grid grid-cols-2 gap-4 border-t border-paper/15 pt-5 sm:grid-cols-4"><div><p className="eyebrow text-paper/42">Traveler</p><p className="mt-1 text-sm font-semibold">Aanya Sharma</p></div><div><p className="eyebrow text-paper/42">Dates</p><p className="mt-1 text-sm font-semibold">12–14 Feb</p></div><div><p className="eyebrow text-paper/42">Pickup</p><p className="mt-1 text-sm font-semibold">Home</p></div><div><p className="eyebrow text-paper/42">Status</p><p className="mt-1 text-sm font-semibold text-teal-light">Live</p></div></div><div className="mt-7 flex flex-col gap-3 sm:flex-row"><button type="button" onClick={() => toast.success("Driver tracking opened · Rajesh is 12 minutes ahead")} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-paper/10 px-4 py-3 text-xs font-bold text-paper hover:bg-paper/15"><Navigation size={15} /> Track driver</button><button type="button" onClick={() => toast.success("Privacy relay chat is ready for the operator handoff")} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-paper/10 px-4 py-3 text-xs font-bold text-paper hover:bg-paper/15"><MessageCircle size={15} /> Privacy chat</button></div></Card><div className="space-y-5"><Card className="p-5"><div className="flex items-center justify-between"><div><MiniLabel>Today · Day 1</MiniLabel><p className="mt-2 text-sm font-bold text-ink">Your travel drawer</p></div><QrBlock /></div><div className="mt-5 grid grid-cols-2 gap-3"><button type="button" onClick={() => toast.success("QR voucher opened · ₹120 fixed rate")} className="pass-item text-left"><Store size={15} className="text-saffron" /><div><strong>Sharma Ji</strong><span>QR voucher · ₹120 fixed</span></div><ArrowRight size={14} className="ml-auto text-ink-muted" /></button><div className="pass-item"><Hotel size={15} className="text-teal" /><div><strong>Hotel check-in</strong><span>17:30 · Pushkar</span></div></div><div className="pass-item"><Phone size={15} className="text-teal" /><div><strong>Driver contact</strong><span>Rajesh · masked</span></div></div><div className="pass-item"><FileCheck2 size={15} className="text-moss" /><div><strong>Offline ready</strong><span>All details saved</span></div></div></div></Card><button type="button" onClick={onAdapt} className="adapt-button"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber text-ink"><CloudRain size={19} /></span><span className="flex-1 text-left"><MiniLabel tone="amber">Weather watch</MiniLabel><strong className="mt-1 block text-sm text-ink">Adapt My Day</strong><small className="mt-1 block text-xs text-ink-muted">Rain may affect your outdoor trek at 2:00 PM.</small></span><ArrowRight size={17} className="text-ink-muted" /></button></div></div></div>;
+        </div><span className="eyebrow text-paper/55">Orbit pass</span></div><h2 className="mt-5 font-display text-4xl font-semibold leading-none tracking-tighter">{destination}, with room<br />for <em className="text-saffron-light">wonder.</em></h2></div><span className="rounded-full border border-paper/15 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.13em] text-paper/58">TRP · 8029</span></div><div className="mt-12 grid grid-cols-2 gap-4 border-t border-paper/15 pt-5 sm:grid-cols-4"><div><p className="eyebrow text-paper/42">Traveler</p><p className="mt-1 text-sm font-semibold">Aanya Sharma</p></div><div><p className="eyebrow text-paper/42">Dates</p><p className="mt-1 text-sm font-semibold">12–14 Feb</p></div><div><p className="eyebrow text-paper/42">Pickup</p><p className="mt-1 text-sm font-semibold">Home</p></div><div><p className="eyebrow text-paper/42">Status</p><p className="mt-1 text-sm font-semibold text-teal-light">Live</p></div></div><div className="mt-7 flex flex-col gap-3 sm:flex-row"><button type="button" onClick={() => toast.success("Driver tracking opened · Rajesh is 12 minutes ahead")} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-paper/10 px-4 py-3 text-xs font-bold text-paper hover:bg-paper/15"><Navigation size={15} /> Track driver</button><button type="button" onClick={() => toast.success("Privacy relay chat is ready for the operator handoff")} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-paper/10 px-4 py-3 text-xs font-bold text-paper hover:bg-paper/15"><MessageCircle size={15} /> Privacy chat</button></div></Card><div className="space-y-5"><Card className="p-5"><div className="flex items-center justify-between"><div><MiniLabel>Today · Day 1</MiniLabel><p className="mt-2 text-sm font-bold text-ink">Your travel drawer</p></div><QrBlock /></div><div className="mt-5 grid grid-cols-2 gap-3"><button type="button" onClick={() => toast.success("QR voucher opened")} className="pass-item text-left"><Store size={15} className="text-saffron" /><div><strong>Local stop</strong><span>QR voucher · Fixed rate</span></div><ArrowRight size={14} className="ml-auto text-ink-muted" /></button><div className="pass-item"><Hotel size={15} className="text-teal" /><div><strong>Hotel check-in</strong><span>17:30 · Pushkar</span></div></div><div className="pass-item"><Phone size={15} className="text-teal" /><div><strong>Driver contact</strong><span>Rajesh · masked</span></div></div><div className="pass-item"><FileCheck2 size={15} className="text-moss" /><div><strong>Offline ready</strong><span>All details saved</span></div></div></div></Card><button type="button" onClick={onAdapt} className="adapt-button"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber text-ink"><CloudRain size={19} /></span><span className="flex-1 text-left"><MiniLabel tone="amber">Weather watch</MiniLabel><strong className="mt-1 block text-sm text-ink">Adapt My Day</strong><small className="mt-1 block text-xs text-ink-muted">Rain may affect your outdoor trek at 2:00 PM.</small></span><ArrowRight size={17} className="text-ink-muted" /></button></div></div></div>;
 }
 
 function RippleOptions({ onResolve, resolved }: { onResolve: (key: string) => void; resolved: boolean }) {
@@ -719,7 +1208,7 @@ function RippleOptions({ onResolve, resolved }: { onResolve: (key: string) => vo
 }
 
 function Complete({ resolved, resolutionKey }: { resolved: boolean; resolutionKey: string }) {
-  return <div className="space-y-8 animate-fade-up"><div className="section-heading"><MiniLabel tone="green">07 / Complete</MiniLabel><h1>A trip that kept its <em>shape.</em></h1><p>Not because nothing changed—because the system knew what to do when it did.</p></div><div className="grid gap-6 xl:grid-cols-[1fr_0.8fr]"><Card className="overflow-hidden p-0"><div className="relative h-52"><img src={imageReference} alt="Jaipur road-trip landscape" className="h-full w-full object-cover" /><div className="absolute inset-0 bg-linear-to-t from-ink/80 to-transparent" /><div className="absolute bottom-5 left-6 text-paper"><p className="eyebrow text-paper/60">Trip summary · Aanya Sharma</p><h2 className="mt-2 font-display text-3xl font-semibold tracking-tighter">Jaipur circuit</h2></div></div><div className="grid grid-cols-2 gap-4 p-6 sm:grid-cols-4"><div><p className="eyebrow">Total</p><p className="mt-2 text-xl font-bold">₹49,240</p></div><div><p className="eyebrow">Waypoints</p><p className="mt-2 text-xl font-bold">9</p></div><div><p className="eyebrow">Buffer</p><p className="mt-2 text-xl font-bold text-moss">30 min</p></div><div><p className="eyebrow">Status</p><p className="mt-2 text-xl font-bold text-moss">Held</p></div></div><div className="border-t border-ink/8 px-6 py-5"><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-moss/10 text-moss"><CheckCircle2 size={17} /></div><div><p className="text-sm font-bold text-ink">{resolutionKey === "A" ? "Ripple Engine preserved the day" : resolutionKey === "B" ? "Ripple Engine moved the weather risk" : "Ripple Engine closed the affected booking"}</p><p className="mt-1 text-xs text-ink-muted">{resolutionKey === "A" ? "Outdoor trek swapped for an indoor gallery. All affected partners notified." : resolutionKey === "B" ? "Outdoor trek moved to Day 3 and the driver buffer stayed protected." : "The trek was cancelled, a vendor credit was logged, and the rest of the route stayed intact."}</p></div></div></div></Card><div className="space-y-5"><Card className="p-5"><div className="flex items-center justify-between"><MiniLabel>Memories log</MiniLabel><button type="button" onClick={() => { navigator.clipboard?.writeText("Jaipur circuit · Aanya Sharma"); toast.success("Trip memories link copied"); }} className="icon-button h-8 w-8" aria-label="Copy trip memories link"><Copy size={15} /></button></div><div className="mt-5 grid grid-cols-2 gap-3"><div className="memory-tile"><span>01</span><strong>Golden hour<br />at Amber Fort</strong></div><div className="memory-tile memory-tile-teal"><span>02</span><strong>Tea, rain,<br />and a good detour</strong></div></div></Card><Card className="p-5"><div className="flex items-center justify-between"><MiniLabel>Review loop</MiniLabel><Star size={15} className="text-saffron" /></div><p className="mt-3 text-sm leading-6 text-ink/75">Rate both sides of the route. Reliability scores update for the next traveler.</p><div className="mt-4 flex items-center justify-between rounded-xl bg-paper-dark px-3 py-3"><div className="flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-saffron/16 text-saffron"><Store size={15} /></div><span className="text-xs font-bold">Sharma Ji Samosa Hub</span></div><span className="text-xs font-bold text-moss">4.8 → 4.9</span></div><Button onClick={() => toast.success("Review loop opened · traveler and partner views paired")} variant="outline" className="mt-4 h-10 w-full rounded-xl border-ink/12 bg-paper text-xs font-bold text-ink hover:bg-paper-dark">Open dual-sided review <ArrowRight size={14} className="ml-2" /></Button></Card></div></div></div>;
+  return <div className="space-y-8 animate-fade-up"><div className="section-heading"><MiniLabel tone="green">07 / Complete</MiniLabel><h1>A trip that kept its <em>shape.</em></h1><p>Not because nothing changed—because the system knew what to do when it did.</p></div><div className="grid gap-6 xl:grid-cols-[1fr_0.8fr]"><Card className="overflow-hidden p-0"><div className="relative h-52"><img src={imageReference} alt="Jaipur road-trip landscape" className="h-full w-full object-cover" /><div className="absolute inset-0 bg-linear-to-t from-ink/80 to-transparent" /><div className="absolute bottom-5 left-6 text-paper"><p className="eyebrow text-paper/60">Trip summary · Aanya Sharma</p><h2 className="mt-2 font-display text-3xl font-semibold tracking-tighter">Jaipur circuit</h2></div></div><div className="grid grid-cols-2 gap-4 p-6 sm:grid-cols-4"><div><p className="eyebrow">Total</p><p className="mt-2 text-xl font-bold">₹49,240</p></div><div><p className="eyebrow">Waypoints</p><p className="mt-2 text-xl font-bold">9</p></div><div><p className="eyebrow">Buffer</p><p className="mt-2 text-xl font-bold text-moss">30 min</p></div><div><p className="eyebrow">Status</p><p className="mt-2 text-xl font-bold text-moss">Held</p></div></div><div className="border-t border-ink/8 px-6 py-5"><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-moss/10 text-moss"><CheckCircle2 size={17} /></div><div><p className="text-sm font-bold text-ink">{resolutionKey === "A" ? "Ripple Engine preserved the day" : resolutionKey === "B" ? "Ripple Engine moved the weather risk" : "Ripple Engine closed the affected booking"}</p><p className="mt-1 text-xs text-ink-muted">{resolutionKey === "A" ? "Outdoor trek swapped for an indoor gallery. All affected partners notified." : resolutionKey === "B" ? "Outdoor trek moved to Day 3 and the driver buffer stayed protected." : "The trek was cancelled, a vendor credit was logged, and the rest of the route stayed intact."}</p></div></div></div></Card><div className="space-y-5"><Card className="p-5"><div className="flex items-center justify-between"><MiniLabel>Memories log</MiniLabel><button type="button" onClick={() => { navigator.clipboard?.writeText("Jaipur circuit · Aanya Sharma"); toast.success("Trip memories link copied"); }} className="icon-button h-8 w-8" aria-label="Copy trip memories link"><Copy size={15} /></button></div><div className="mt-5 grid grid-cols-2 gap-3"><div className="memory-tile"><span>01</span><strong>Golden hour<br />at Amber Fort</strong></div><div className="memory-tile memory-tile-teal"><span>02</span><strong>Tea, rain,<br />and a good detour</strong></div></div></Card><Card className="p-5"><div className="flex items-center justify-between"><MiniLabel>Review loop</MiniLabel><Star size={15} className="text-saffron" /></div><p className="mt-3 text-sm leading-6 text-ink/75">Rate both sides of the route. Reliability scores update for the next traveler.</p><div className="mt-4 flex items-center justify-between rounded-xl bg-paper-dark px-3 py-3"><div className="flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-saffron/16 text-saffron"><Store size={15} /></div><span className="text-xs font-bold">Local stop</span></div><span className="text-xs font-bold text-moss">4.8 → 4.9</span></div><Button onClick={() => toast.success("Review loop opened · traveler and partner views paired")} variant="outline" className="mt-4 h-10 w-full rounded-xl border-ink/12 bg-paper text-xs font-bold text-ink hover:bg-paper-dark">Open dual-sided review <ArrowRight size={14} className="ml-2" /></Button></Card></div></div></div>;
 }
 
 function TravelerView({
@@ -756,6 +1245,16 @@ function TravelerView({
   setChildrenCount,
   infants,
   setInfants,
+  selectedPOI,
+  setSelectedPOI,
+  poiChatOpen,
+  setPoiChatOpen,
+  addedPOIs,
+  setAddedPOIs,
+  chatMessages,
+  setChatMessages,
+  chatTyping,
+  setChatTyping,
 }: {
   step: TravelerStep;
   setStep: (step: TravelerStep) => void;
@@ -790,6 +1289,16 @@ function TravelerView({
   setChildrenCount: (value: number) => void;
   infants: number;
   setInfants: (value: number) => void;
+  selectedPOI: POI | null;
+  setSelectedPOI: (poi: POI | null) => void;
+  poiChatOpen: boolean;
+  setPoiChatOpen: (open: boolean) => void;
+  addedPOIs: POI[];
+  setAddedPOIs: (pois: POI[]) => void;
+  chatMessages: ChatMessage[];
+  setChatMessages: (messages: ChatMessage[]) => void;
+  chatTyping: boolean;
+  setChatTyping: (typing: boolean) => void;
 }) {
   switch (step) {
     case 0:
@@ -820,7 +1329,24 @@ function TravelerView({
         />
       );
     case 1:
-      return <RouteRadar destination={destination} routePlan={routePlan} addedStop={addedStop} onAddStop={onAddStop} tripTotal={tripTotal} onNext={() => setStep(2)} />;
+      return <RouteRadar 
+        destination={destination} 
+        routePlan={routePlan} 
+        addedStop={addedStop} 
+        onAddStop={onAddStop} 
+        tripTotal={tripTotal} 
+        onNext={() => setStep(2)}
+        selectedPOI={selectedPOI}
+        setSelectedPOI={setSelectedPOI}
+        poiChatOpen={poiChatOpen}
+        setPoiChatOpen={setPoiChatOpen}
+        addedPOIs={addedPOIs}
+        setAddedPOIs={setAddedPOIs}
+        chatMessages={chatMessages}
+        setChatMessages={setChatMessages}
+        chatTyping={chatTyping}
+        setChatTyping={setChatTyping}
+      />;
     case 2:
       return <Customization upgraded={upgraded} setUpgraded={setUpgraded} addedStop={addedStop} tripTotal={tripTotal} onNext={() => setStep(3)} />;
     case 3:
@@ -837,7 +1363,7 @@ function TravelerView({
 function OperatorDashboard({ resolved, onResolve }: { resolved: boolean; onResolve: () => void }) {
   const [showRipple, setShowRipple] = useState(false);
   const alertState = resolved ? "Resolved" : "Needs action";
-  return <div className="space-y-8 animate-fade-up"><div className="section-heading flex flex-col justify-between gap-5 md:flex-row md:items-end"><div><MiniLabel tone="teal">Operator Command Center</MiniLabel><h1>See the whole route. <em>Move one thing.</em></h1><p>A calm control surface for active trips, vendor health, margins, and the next operational risk.</p></div><div className="flex items-center gap-2"><StatusChip tone="green">12 active trips</StatusChip><StatusChip tone={resolved ? "green" : "amber"}>{resolved ? "All clear" : "1 risk needs action"}</StatusChip></div></div><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"><Metric label="Active trips" value="12" sub="+3 from yesterday" icon={Navigation} tone="teal" /><Metric label="Live margin" value="18.4%" sub="₹86,420 protected" icon={TrendingUp} tone="green" /><Metric label="Vendor response" value="94%" sub="Median · 3m 12s" icon={MessageCircle} tone="saffron" /><Metric label="Open risks" value={resolved ? "0" : "01"} sub={resolved ? "Route stable" : "Rain · Day 2"} icon={CircleAlert} tone={resolved ? "green" : "amber"} /></div><div className="grid gap-5 xl:grid-cols-[1.25fr_0.75fr]"><Card className="overflow-hidden p-0"><div className="flex items-center justify-between border-b border-ink/8 px-5 py-4"><div><MiniLabel>Live fleet map</MiniLabel><p className="mt-2 text-sm font-bold text-ink">Active groups · North Rajasthan</p></div><button type="button" onClick={() => toast.info("Full fleet map opened in visual preview")} className="flex items-center gap-2 rounded-lg border border-ink/10 px-3 py-2 text-xs font-bold text-ink-muted"><MapPin size={13} /> Full map <ChevronDown size={13} /></button></div><div className="relative h-97.5 overflow-hidden bg-[#cbd9d3]"><img src={mapImage} alt="Operational live fleet map" className="absolute inset-0 h-full w-full object-cover opacity-85" /><div className="absolute inset-0 bg-ink/5" /><div className="operator-marker left-[18%] top-[70%]"><span className="h-3 w-3 rounded-full bg-teal shadow-[0_0_0_5px_rgba(13,148,136,0.18)]" /><span>TRP-8029 · on route</span></div><div className="operator-marker left-[55%] top-[43%]"><span className="h-3 w-3 rounded-full bg-amber shadow-[0_0_0_5px_rgba(217,119,6,0.16)]" /><span>TRP-8018 · weather watch</span></div><div className="operator-marker left-[72%] top-[24%]"><span className="h-3 w-3 rounded-full bg-moss shadow-[0_0_0_5px_rgba(77,124,75,0.16)]" /><span>TRP-8004 · stable</span></div><div className="absolute bottom-4 left-4 flex gap-2 rounded-xl border border-paper/60 bg-paper/88 px-3 py-2 text-[10px] font-bold text-ink shadow-sm backdrop-blur-md"><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-teal" /> Active</span><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-amber" /> Watch</span><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-moss" /> Stable</span></div></div></Card><div className="space-y-5"><Card className={cn("p-5", resolved ? "border-moss/20 bg-moss/5" : "border-amber/20 bg-amber/5")}><div className="flex items-start justify-between"><div className="flex items-center gap-2"><span className={cn("flex h-9 w-9 items-center justify-center rounded-xl", resolved ? "bg-moss/12 text-moss" : "bg-amber text-ink")} >{resolved ? <CheckCircle2 size={17} /> : <CloudRain size={17} />}</span><div><MiniLabel tone={resolved ? "green" : "amber"}>Predictive threat matrix</MiniLabel><p className="mt-1 text-sm font-bold text-ink">{resolved ? "Weather ripple resolved" : "Heavy rain · Day 2"}</p></div></div><StatusChip tone={resolved ? "green" : "amber"}>{alertState}</StatusChip></div><p className="mt-5 text-sm leading-6 text-ink/72">{resolved ? "Indoor Art Gallery substitution cascaded to traveler, driver, hotel, guide, and vendor views." : "Outdoor trek at risk at 2:00 PM. Four connected bookings need a coordinated answer."}</p><div className="mt-5 grid grid-cols-2 gap-2 text-xs"><div className="rounded-xl bg-paper/70 p-3"><span className="text-ink-muted">Traveler</span><strong className="mt-1 block">Aanya Sharma</strong></div><div className="rounded-xl bg-paper/70 p-3"><span className="text-ink-muted">Impact</span><strong className="mt-1 block">4 vendors</strong></div></div>{!resolved && <Button onClick={() => setShowRipple(true)} className="mt-5 h-11 w-full rounded-xl bg-ink font-bold text-paper hover:bg-ink/90"><Zap size={15} className="mr-2 text-saffron-light" /> Open Ripple Engine</Button>}{resolved && <div className="mt-5 flex items-center gap-2 text-xs font-bold text-moss"><CheckCircle2 size={15} /> Cascade complete · 00:01:42</div>}</Card><Card className="p-5"><div className="flex items-center justify-between"><MiniLabel>Dispatch activity</MiniLabel><span className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">Now</span></div><div className="mt-5 space-y-4">{[{ icon: MessageCircle, title: "Vendor confirmed", detail: "Customer #TRV-8029 · Sharma Ji", tone: "teal" }, { icon: Bike, title: resolved ? "Driver route updated" : "Driver route stable", detail: resolved ? "New stop · Gallery District" : "TRP-8029 · 12 mins ahead", tone: resolved ? "green" : "saffron" }, { icon: ShieldCheck, title: "Privacy relay active", detail: "No traveler contact exposed", tone: "green" }].map((item) => { const Icon = item.icon; return <div key={item.title} className="flex items-start gap-3"><div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", item.tone === "teal" ? "bg-teal/10 text-teal" : item.tone === "saffron" ? "bg-saffron/12 text-saffron" : "bg-moss/10 text-moss")}><Icon size={14} /></div><div><p className="text-xs font-bold text-ink">{item.title}</p><p className="mt-1 text-[11px] text-ink-muted">{item.detail}</p></div></div>; })}</div></Card></div></div>{showRipple && <RippleModal onClose={() => setShowRipple(false)} onResolve={() => { onResolve(); setShowRipple(false); }} />}</div>;
+  return <div className="space-y-8 animate-fade-up"><div className="section-heading flex flex-col justify-between gap-5 md:flex-row md:items-end"><div><MiniLabel tone="teal">Operator Command Center</MiniLabel><h1>See the whole route. <em>Move one thing.</em></h1><p>A calm control surface for active trips, vendor health, margins, and the next operational risk.</p></div><div className="flex items-center gap-2"><StatusChip tone="green">12 active trips</StatusChip><StatusChip tone={resolved ? "green" : "amber"}>{resolved ? "All clear" : "1 risk needs action"}</StatusChip></div></div><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"><Metric label="Active trips" value="12" sub="+3 from yesterday" icon={Navigation} tone="teal" /><Metric label="Live margin" value="18.4%" sub="₹86,420 protected" icon={TrendingUp} tone="green" /><Metric label="Vendor response" value="94%" sub="Median · 3m 12s" icon={MessageCircle} tone="saffron" /><Metric label="Open risks" value={resolved ? "0" : "01"} sub={resolved ? "Route stable" : "Rain · Day 2"} icon={CircleAlert} tone={resolved ? "green" : "amber"} /></div><div className="grid gap-5 xl:grid-cols-[1.25fr_0.75fr]"><Card className="overflow-hidden p-0"><div className="flex items-center justify-between border-b border-ink/8 px-5 py-4"><div><MiniLabel>Live fleet map</MiniLabel><p className="mt-2 text-sm font-bold text-ink">Active groups · North Rajasthan</p></div><button type="button" onClick={() => toast.info("Full fleet map opened in visual preview")} className="flex items-center gap-2 rounded-lg border border-ink/10 px-3 py-2 text-xs font-bold text-ink-muted"><MapPin size={13} /> Full map <ChevronDown size={13} /></button></div><div className="relative h-97.5 overflow-hidden bg-[#cbd9d3]"><img src={mapImage} alt="Operational live fleet map" className="absolute inset-0 h-full w-full object-cover opacity-85" /><div className="absolute inset-0 bg-ink/5" /><div className="operator-marker left-[18%] top-[70%]"><span className="h-3 w-3 rounded-full bg-teal shadow-[0_0_0_5px_rgba(13,148,136,0.18)]" /><span>TRP-8029 · on route</span></div><div className="operator-marker left-[55%] top-[43%]"><span className="h-3 w-3 rounded-full bg-amber shadow-[0_0_0_5px_rgba(217,119,6,0.16)]" /><span>TRP-8018 · weather watch</span></div><div className="operator-marker left-[72%] top-[24%]"><span className="h-3 w-3 rounded-full bg-moss shadow-[0_0_0_5px_rgba(77,124,75,0.16)]" /><span>TRP-8004 · stable</span></div><div className="absolute bottom-4 left-4 flex gap-2 rounded-xl border border-paper/60 bg-paper/88 px-3 py-2 text-[10px] font-bold text-ink shadow-sm backdrop-blur-md"><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-teal" /> Active</span><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-amber" /> Watch</span><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-moss" /> Stable</span></div></div></Card><div className="space-y-5"><Card className={cn("p-5", resolved ? "border-moss/20 bg-moss/5" : "border-amber/20 bg-amber/5")}><div className="flex items-start justify-between"><div className="flex items-center gap-2"><span className={cn("flex h-9 w-9 items-center justify-center rounded-xl", resolved ? "bg-moss/12 text-moss" : "bg-amber text-ink")} >{resolved ? <CheckCircle2 size={17} /> : <CloudRain size={17} />}</span><div><MiniLabel tone={resolved ? "green" : "amber"}>Predictive threat matrix</MiniLabel><p className="mt-1 text-sm font-bold text-ink">{resolved ? "Weather ripple resolved" : "Heavy rain · Day 2"}</p></div></div><StatusChip tone={resolved ? "green" : "amber"}>{alertState}</StatusChip></div><p className="mt-5 text-sm leading-6 text-ink/72">{resolved ? "Indoor Art Gallery substitution cascaded to traveler, driver, hotel, guide, and vendor views." : "Outdoor trek at risk at 2:00 PM. Four connected bookings need a coordinated answer."}</p><div className="mt-5 grid grid-cols-2 gap-2 text-xs"><div className="rounded-xl bg-paper/70 p-3"><span className="text-ink-muted">Traveler</span><strong className="mt-1 block">Aanya Sharma</strong></div><div className="rounded-xl bg-paper/70 p-3"><span className="text-ink-muted">Impact</span><strong className="mt-1 block">4 vendors</strong></div></div>{!resolved && <Button onClick={() => setShowRipple(true)} className="mt-5 h-11 w-full rounded-xl bg-ink font-bold text-paper hover:bg-ink/90"><Zap size={15} className="mr-2 text-saffron-light" /> Open Ripple Engine</Button>}{resolved && <div className="mt-5 flex items-center gap-2 text-xs font-bold text-moss"><CheckCircle2 size={15} /> Cascade complete · 00:01:42</div>}</Card><Card className="p-5"><div className="flex items-center justify-between"><MiniLabel>Dispatch activity</MiniLabel><span className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">Now</span></div><div className="mt-5 space-y-4">{[{ icon: MessageCircle, title: "Vendor confirmed", detail: "Customer #TRV-8029", tone: "teal" }, { icon: Bike, title: resolved ? "Driver route updated" : "Driver route stable", detail: resolved ? "New stop · Gallery District" : "TRP-8029 · 12 mins ahead", tone: resolved ? "green" : "saffron" }, { icon: ShieldCheck, title: "Privacy relay active", detail: "No traveler contact exposed", tone: "green" }].map((item) => { const Icon = item.icon; return <div key={item.title} className="flex items-start gap-3"><div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", item.tone === "teal" ? "bg-teal/10 text-teal" : item.tone === "saffron" ? "bg-saffron/12 text-saffron" : "bg-moss/10 text-moss")}><Icon size={14} /></div><div><p className="text-xs font-bold text-ink">{item.title}</p><p className="mt-1 text-[11px] text-ink-muted">{item.detail}</p></div></div>; })}</div></Card></div></div>{showRipple && <RippleModal onClose={() => setShowRipple(false)} onResolve={() => { onResolve(); setShowRipple(false); }} />}</div>;
 }
 
 function RippleModal({ onClose, onResolve }: { onClose: () => void; onResolve: () => void }) {
@@ -846,7 +1372,7 @@ function RippleModal({ onClose, onResolve }: { onClose: () => void; onResolve: (
 
 function VendorView({ confirmed, onConfirm }: { confirmed: boolean; onConfirm: () => void }) {
   const [declined, setDeclined] = useState(false);
-  return <div className="space-y-8 animate-fade-up"><div className="section-heading"><MiniLabel tone="teal">Vendor Micro-Swarm</MiniLabel><h1>No new app. <em>Just the next clear action.</em></h1><p>A privacy-safe WhatsApp bridge lets local partners confirm schedules without seeing a traveler's private number.</p></div><div className="grid gap-6 xl:grid-cols-[0.7fr_1.3fr]"><Card className="vendor-phone-wrap"><div className="vendor-phone"><div className="phone-notch" /><div className="flex items-center gap-3 border-b border-ink/8 bg-paper px-4 py-4"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-saffron/15 text-saffron"><Store size={16} /></div><div className="flex-1"><p className="text-sm font-bold text-ink">Sharma Ji Samosa Hub</p><p className="mt-0.5 flex items-center gap-1 text-[10px] text-moss"><span className="h-1.5 w-1.5 rounded-full bg-moss" /> WhatsApp business</p></div><MoreHorizontal size={17} className="text-ink-muted" /></div><div className="flex-1 space-y-4 bg-[#e9efe9] p-4"><div className="mx-auto w-fit rounded-full bg-paper/70 px-3 py-1 text-[10px] font-bold text-ink-muted">Today · Privacy Relay</div><div className="chat-bubble chat-bubble-in"><p className="text-xs leading-5 text-ink">New order request from <strong>Customer #TRV-8029</strong>:<br /><br /><strong>2× Hot Samosas</strong><br />Arrival in 15 mins<br />System fixed rate: <strong>₹120</strong></p><div className="mt-3 flex items-center gap-1.5 rounded-lg bg-teal/8 px-2 py-2 text-[10px] font-bold text-teal"><LockKeyhole size={12} /> Traveler number hidden</div><span className="mt-2 block text-[10px] text-ink-muted">11:42 AM · delivered</span></div>{confirmed ? <div className="chat-bubble chat-bubble-out"><p className="text-xs leading-5 text-ink">Confirmed. We'll have it ready.</p><span className="mt-2 block text-[10px] text-ink-muted">11:43 AM · seen</span></div> : declined ? <div className="chat-bubble chat-bubble-out"><p className="text-xs leading-5 text-ink">Can't fulfil this request today.</p><span className="mt-2 block text-[10px] text-ink-muted">11:43 AM · sent</span><button type="button" onClick={() => setDeclined(false)} className="mt-3 text-[10px] font-bold text-teal">Reopen request</button></div> : <div className="chat-bubble chat-bubble-in"><div className="flex items-center gap-2"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-saffron/12 text-saffron"><TicketCheck size={15} /></span><div><strong className="block text-xs text-ink">Digital QR Voucher</strong><span className="text-[10px] text-ink-muted">Fixed menu rate · ₹120</span></div></div><div className="mt-3 flex gap-2"><button type="button" onClick={onConfirm} className="flex-1 rounded-lg bg-moss px-3 py-2 text-[10px] font-bold text-white">Confirm</button><button type="button" onClick={() => { setDeclined(true); toast.info("Decline logged · operator notified"); }} className="flex-1 rounded-lg border border-ink/10 bg-paper px-3 py-2 text-[10px] font-bold text-ink-muted">Decline</button></div></div>}</div><div className="border-t border-ink/8 bg-paper px-4 py-3"><div className="flex items-center gap-2 rounded-xl bg-paper-dark px-3 py-2 text-xs text-ink-muted"><span className="flex-1">Message</span><Send size={14} className="text-teal" /></div></div></div></Card><div className="space-y-5"><Card className="p-6"><div className="flex items-center justify-between"><div><MiniLabel tone="teal">Privacy-preserving bridge</MiniLabel><h2 className="mt-2 font-display text-2xl font-semibold tracking-tighter">The relay keeps trust visible.</h2></div><ShieldCheck size={23} className="text-teal" /></div><div className="mt-6 space-y-3">{[{ icon: LockKeyhole, title: "Anonymized proxy ID", copy: "Customer #TRV-8029 replaces personal details." }, { icon: IndianRupee, title: "Fixed transparent rate", copy: "₹120 is attached to the voucher before arrival." }, { icon: Activity, title: "Operator audit log", copy: confirmed ? "Confirmed · 11:43 AM · response time 1m" : "Waiting for vendor confirmation · alert at 10m" }].map((item) => { const Icon = item.icon; return <div key={item.title} className="flex items-start gap-3 rounded-xl bg-paper-dark p-3"><div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal/10 text-teal"><Icon size={15} /></div><div><p className="text-xs font-bold text-ink">{item.title}</p><p className="mt-1 text-xs leading-5 text-ink-muted">{item.copy}</p></div></div>; })}</div></Card><Card className={cn("p-6", confirmed ? "border-moss/20 bg-moss/5" : "border-saffron/18 bg-saffron/5")}><div className="flex items-center gap-3"><div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", confirmed ? "bg-moss/12 text-moss" : "bg-saffron/12 text-saffron")} >{confirmed ? <CheckCircle2 size={18} /> : <Timer size={18} />}</div><div><MiniLabel tone={confirmed ? "green" : "saffron"}>Command center sync</MiniLabel><p className="mt-1 text-sm font-bold text-ink">{confirmed ? "Traveler pass updated" : "Confirmation pending"}</p></div></div><div className="mt-5 flex items-center gap-2 text-xs text-ink-muted"><span className={cn("h-2 w-2 rounded-full", confirmed ? "bg-moss" : "bg-saffron")} /> {confirmed ? "Logged without exposing personal data" : "No phone number or full name shown"}</div></Card></div></div></div>;
+  return <div className="space-y-8 animate-fade-up"><div className="section-heading"><MiniLabel tone="teal">Vendor Micro-Swarm</MiniLabel><h1>No new app. <em>Just the next clear action.</em></h1><p>A privacy-safe WhatsApp bridge lets local partners confirm schedules without seeing a traveler's private number.</p></div><div className="grid gap-6 xl:grid-cols-[0.7fr_1.3fr]"><Card className="vendor-phone-wrap"><div className="vendor-phone"><div className="phone-notch" /><div className="flex items-center gap-3 border-b border-ink/8 bg-paper px-4 py-4"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-saffron/15 text-saffron"><Store size={16} /></div><div className="flex-1"><p className="text-sm font-bold text-ink">Local Store</p><p className="mt-0.5 flex items-center gap-1 text-[10px] text-moss"><span className="h-1.5 w-1.5 rounded-full bg-moss" /> WhatsApp business</p></div><MoreHorizontal size={17} className="text-ink-muted" /></div><div className="flex-1 space-y-4 bg-[#e9efe9] p-4"><div className="mx-auto w-fit rounded-full bg-paper/70 px-3 py-1 text-[10px] font-bold text-ink-muted">Today · Privacy Relay</div><div className="chat-bubble chat-bubble-in"><p className="text-xs leading-5 text-ink">New order request from <strong>Customer #TRV-8029</strong>:<br /><br /><strong>Items ready for pickup</strong><br />Arrival in 15 mins<br />System fixed rate: <strong>₹120</strong></p><div className="mt-3 flex items-center gap-1.5 rounded-lg bg-teal/8 px-2 py-2 text-[10px] font-bold text-teal"><LockKeyhole size={12} /> Traveler number hidden</div><span className="mt-2 block text-[10px] text-ink-muted">11:42 AM · delivered</span></div>{confirmed ? <div className="chat-bubble chat-bubble-out"><p className="text-xs leading-5 text-ink">Confirmed. We'll have it ready.</p><span className="mt-2 block text-[10px] text-ink-muted">11:43 AM · seen</span></div> : declined ? <div className="chat-bubble chat-bubble-out"><p className="text-xs leading-5 text-ink">Can't fulfil this request today.</p><span className="mt-2 block text-[10px] text-ink-muted">11:43 AM · sent</span><button type="button" onClick={() => setDeclined(false)} className="mt-3 text-[10px] font-bold text-teal">Reopen request</button></div> : <div className="chat-bubble chat-bubble-in"><div className="flex items-center gap-2"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-saffron/12 text-saffron"><TicketCheck size={15} /></span><div><strong className="block text-xs text-ink">Digital QR Voucher</strong><span className="text-[10px] text-ink-muted">Fixed menu rate · ₹120</span></div></div><div className="mt-3 flex gap-2"><button type="button" onClick={onConfirm} className="flex-1 rounded-lg bg-moss px-3 py-2 text-[10px] font-bold text-white">Confirm</button><button type="button" onClick={() => { setDeclined(true); toast.info("Decline logged · operator notified"); }} className="flex-1 rounded-lg border border-ink/10 bg-paper px-3 py-2 text-[10px] font-bold text-ink-muted">Decline</button></div></div>}</div><div className="border-t border-ink/8 bg-paper px-4 py-3"><div className="flex items-center gap-2 rounded-xl bg-paper-dark px-3 py-2 text-xs text-ink-muted"><span className="flex-1">Message</span><Send size={14} className="text-teal" /></div></div></div></Card><div className="space-y-5"><Card className="p-6"><div className="flex items-center justify-between"><div><MiniLabel tone="teal">Privacy-preserving bridge</MiniLabel><h2 className="mt-2 font-display text-2xl font-semibold tracking-tighter">The relay keeps trust visible.</h2></div><ShieldCheck size={23} className="text-teal" /></div><div className="mt-6 space-y-3">{[{ icon: LockKeyhole, title: "Anonymized proxy ID", copy: "Customer #TRV-8029 replaces personal details." }, { icon: IndianRupee, title: "Fixed transparent rate", copy: "₹120 is attached to the voucher before arrival." }, { icon: Activity, title: "Operator audit log", copy: confirmed ? "Confirmed · 11:43 AM · response time 1m" : "Waiting for vendor confirmation · alert at 10m" }].map((item) => { const Icon = item.icon; return <div key={item.title} className="flex items-start gap-3 rounded-xl bg-paper-dark p-3"><div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal/10 text-teal"><Icon size={15} /></div><div><p className="text-xs font-bold text-ink">{item.title}</p><p className="mt-1 text-xs leading-5 text-ink-muted">{item.copy}</p></div></div>; })}</div></Card><Card className={cn("p-6", confirmed ? "border-moss/20 bg-moss/5" : "border-saffron/18 bg-saffron/5")}><div className="flex items-center gap-3"><div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", confirmed ? "bg-moss/12 text-moss" : "bg-saffron/12 text-saffron")} >{confirmed ? <CheckCircle2 size={18} /> : <Timer size={18} />}</div><div><MiniLabel tone={confirmed ? "green" : "saffron"}>Command center sync</MiniLabel><p className="mt-1 text-sm font-bold text-ink">{confirmed ? "Traveler pass updated" : "Confirmation pending"}</p></div></div><div className="mt-5 flex items-center gap-2 text-xs text-ink-muted"><span className={cn("h-2 w-2 rounded-full", confirmed ? "bg-moss" : "bg-saffron")} /> {confirmed ? "Logged without exposing personal data" : "No phone number or full name shown"}</div></Card></div></div></div>;
 }
 
 const BASE_TRIP_PRICE = 47800;
@@ -858,7 +1384,7 @@ export default function Home() {
   const [destination, setDestination] = useState("Jaipur, Rajasthan");
   const routePlan = useMemo(() => createRoutePlan(destination), [destination]);
 
-  // Intake Canvas form state — lifted here so it's available to every downstream step.
+  // Intake Canvas form state
   const [budget, setBudget] = useState([50000]);
   const [dates, setDates] = useState("");
   const [durationDays, setDurationDays] = useState(3);
@@ -869,18 +1395,33 @@ export default function Home() {
   const [childrenCount, setChildrenCount] = useState(0);
   const [infants, setInfants] = useState(0);
 
+  // Legacy state for the old stop system
   const [addedStop, setAddedStop] = useState(false);
+  
+  // New POI system state
+  const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
+  const [poiChatOpen, setPoiChatOpen] = useState(false);
+  const [addedPOIs, setAddedPOIs] = useState<POI[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatTyping, setChatTyping] = useState(false);
+  
   const [tripTotal, setTripTotal] = useState(BASE_TRIP_PRICE);
   const [upgraded, setUpgraded] = useState(false);
   const [vendorConfirmed, setVendorConfirmed] = useState(false);
   const [resolved, setResolved] = useState(false);
   const [resolutionKey, setResolutionKey] = useState("A");
 
+  // Update tripTotal when POIs are added
+  useEffect(() => {
+    const poiTotal = addedPOIs.reduce((sum, p) => sum + p.detourCost, 0);
+    const baseWithStop = BASE_TRIP_PRICE + (addedStop ? LOCAL_STOP_PRICE : 0);
+    setTripTotal(baseWithStop + poiTotal);
+  }, [addedPOIs, addedStop]);
+
   const addLocalStop = () => {
     if (addedStop) return;
     setAddedStop(true);
-    setTripTotal((current) => current + LOCAL_STOP_PRICE);
-    toast.success("Sharma Ji Samosa Hub added to route · +₹240");
+    toast.success("Local stop added to route · +₹240");
   };
 
   const modeMeta = useMemo(() => ({
@@ -900,6 +1441,11 @@ export default function Home() {
     setPickupAddress("");
     setStyles(["Local Street Food", "Culture & History"]);
     setAddedStop(false);
+    setAddedPOIs([]);
+    setSelectedPOI(null);
+    setPoiChatOpen(false);
+    setChatMessages([]);
+    setChatTyping(false);
     setTripTotal(BASE_TRIP_PRICE);
     setUpgraded(false);
     setVendorConfirmed(false);
@@ -964,6 +1510,16 @@ export default function Home() {
               setChildrenCount={setChildrenCount}
               infants={infants}
               setInfants={setInfants}
+              selectedPOI={selectedPOI}
+              setSelectedPOI={setSelectedPOI}
+              poiChatOpen={poiChatOpen}
+              setPoiChatOpen={setPoiChatOpen}
+              addedPOIs={addedPOIs}
+              setAddedPOIs={setAddedPOIs}
+              chatMessages={chatMessages}
+              setChatMessages={setChatMessages}
+              chatTyping={chatTyping}
+              setChatTyping={setChatTyping}
             />
           ) : mode === "operator" ? (
             <OperatorDashboard resolved={resolved} onResolve={() => setResolved(true)} />
