@@ -1,14 +1,12 @@
 {
   "version": 2,
-  "builds": [
+  "buildCommand": "pnpm run build",
+  "outputDirectory": "dist/public",
+  "devCommand": "pnpm run dev",
+  "installCommand": "pnpm install",
+  "rewrites": [
     {
-      "src": "dist/public/**",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
+      "source": "/(.*)",
       "dest": "/index.html"
     }
   ]
